@@ -1,4 +1,5 @@
 #include "string_lib.h"
+
 #include <string>
 #include <string.h>
 #include <stdio.h>
@@ -6,9 +7,12 @@
 
 
 /**
- *
+ * Function: char* stringToCString(std::string s)
+ * Usage: stringToCString(std::string s)
+ * ------------------------
+ * Post-Conditions: returns a mutable c string version of the std::string.
  */
-char* stringToCString(std::string s)
+char* stringToCString(const std::string s)
 {
 	//convert the string to a const c string
 	const char* s_cstr = s.data(); 

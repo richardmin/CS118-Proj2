@@ -13,10 +13,10 @@ utils/%.o: %.cpp
 	$(CXX) $(CXXFLAGS) -c -o $@ $<
 
 server: $(UTIL_CLASSES)
-	$(CXX) -o $@ $^ $(CXXFLAGS) $@.cpp $(LIBRARIES)
+	$(CXX) -o targets/$@ $^ $(CXXFLAGS) $@.cpp $(LIBRARIES)
 
 client: $(UTIL_CLASSES)
-	$(CXX) -o $@ $^ $(CXXFLAGS) $@.cpp $(LIBRARIES)
+	$(CXX) -o targets/$@ $^ $(CXXFLAGS) $@.cpp $(LIBRARIES)
 
 
 .PHONY: clean
