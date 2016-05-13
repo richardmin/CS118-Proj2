@@ -32,8 +32,7 @@
 .vagrant
 
 # Executables
-web-server
-web-client
+targets/
 
 # Mac Files
 .DS_Store
