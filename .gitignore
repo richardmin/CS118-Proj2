@@ -33,6 +33,7 @@
 
 # Executables
 targets/
+utils/*.o
 
 # Mac Files
 .DS_Store

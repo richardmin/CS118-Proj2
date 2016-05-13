@@ -2,7 +2,7 @@
 #include <thread>
 #include <iostream>
 
-#include "utils/IPResolver.h"
+#include "../utils/IPResolver.h"
 
 int main(int argc, char* argv[])
 {

@@ -1,6 +1,6 @@
 CXX=g++
 CXXOPTIMIZE= -O0
-BOOST=-lboost_regex
+BOOST=
 CXXFLAGS= -g $(CXXOPTIMIZE) -pthread -Wall -std=c++11 
 LIBRARIES=$(BOOST)
 USERID=lab2_joanne_richard
@@ -13,15 +13,15 @@ utils/%.o: %.cpp
 	$(CXX) $(CXXFLAGS) -c -o $@ $<
 
 server: $(UTIL_CLASSES)
-	$(CXX) -o targets/$@ $^ $(CXXFLAGS) $@.cpp $(LIBRARIES)
+	$(CXX) -o targets/$@ $^ $(CXXFLAGS) src/$@.cpp $(LIBRARIES)
 
 client: $(UTIL_CLASSES)
-	$(CXX) -o targets/$@ $^ $(CXXFLAGS) $@.cpp $(LIBRARIES)
+	$(CXX) -o targets/$@ $^ $(CXXFLAGS) src/$@.cpp $(LIBRARIES)
 
 
 .PHONY: clean
 clean:
-	rm -rf *.o *~ *.gch *.swp *.dSYM server client targets/* *.tar.gz
+	rm -rf utils/*.o targets/* *.tar.gz
 
 tarball: clean
 	tar -cvf $(USERID).tar.gz *.cpp Makefile README.txt Vagrantfile
