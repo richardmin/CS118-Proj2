@@ -19,8 +19,8 @@ struct packet_headers {
 	uint16_t flags;
 };
 
-#define ACK_FLAG 0x100
-#define SYN_FLAG 0x10
+#define ACK_FLAG 0x4
+#define SYN_FLAG 0x2
 #define FIN_FLAG 0x1
 
 #endif

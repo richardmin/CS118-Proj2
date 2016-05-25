@@ -102,9 +102,12 @@ int main(int argc, char* argv[])
 
   //--------------- Establish TCP Handshake -----------//
   int r = custom_listen(sockfd, 1); //note that backlog is ignored in our implementation
+                                    //waits for an ACK request, sends a SYN-ACK in response.
   if(r == -1)
   {
-    //
+    //this should never happen
+    std::cerr << "Failed to establish handshake" << std::endl;
+    exit(4);
   }
 
   char ipstr[INET_ADDRSTRLEN] = {'\0'};
