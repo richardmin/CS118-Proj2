@@ -1,6 +1,7 @@
 #ifndef TCPConstants_h
 #define TCPConstants_h
 
+#include <stdint.h>
 #define PACKET_HEADER_LENGTH = 8;
 #define MAX_PACKET_PAYLOAD_LENGTH = 1024;
 #define MAX_PACKET_LENGTH = PACKET_HEADER_LENGTH + MAX_PACKET_PAYLOAD_LENGTH;
