@@ -3,8 +3,7 @@
 #include <unistd.h>
 #include <netdb.h>
 #include <signal.h>
-#include <stdlib.h>
-#include <time.h>
+
 
 #include <arpa/inet.h>
 
@@ -28,7 +27,6 @@
 
 int main(int argc, char* argv[])
 {
-  srand(time(NULL));  //note that we must do this for our TCP ack/sequence numbers to be random
 
 
   int portnum = -1;
@@ -99,6 +97,7 @@ int main(int argc, char* argv[])
     exit(5);
   }
 
+  TCPManager t = new TCPManager();
 
   //--------------- Establish TCP Handshake -----------//
   int r = custom_listen(sockfd, 1); //note that backlog is ignored in our implementation

@@ -6,14 +6,19 @@
 #include <stdlib.h>
 #include <iostream>
 
+#include <stdlib.h>
+#include <time.h>
+
 TCPManager::TCPManager()
 {
-
+	srand(time(NULL)); //note that we must do this for our TCP ack/sequence numbers to be random
+	last_syn_num = -1;
+	last_ack_num = -1;
+	connected_established = false;
 }
 
 ~TCPManager::TCPManager()
 {
-
 }
 
 /**
