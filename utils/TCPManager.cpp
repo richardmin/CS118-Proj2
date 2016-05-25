@@ -25,7 +25,7 @@ TCPManager::TCPManager()
  */
 int TCPManager::custom_listen(int sockfd, int backlog)
 {
-
+	
 	return -1;
 }
 
@@ -42,6 +42,13 @@ int TCPManager::custom_accept(int sockfd, struct sockaddr *addr, socklen_t* addr
  */
 int TCPManager::custom_connect(int sockfd, const struct sockaddr * addr, socklen_t addrlen)
 {
+	/*
+	packet_headers syn_packet = {rand(), 0, INIT_RECV_WINDOW, SYN_FLAG};
+	if ( !sendto(sockfd, syn_packet, PACKET_HEADER_LENGTH, , addr, addrlen) ) {
+		std::cerr << "Error: Could not send syn_packet" << std::endl;
+		exit(1);
+	}
+	*/
 	return -1;
 }
 
