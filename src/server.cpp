@@ -94,12 +94,14 @@ int main(int argc, char* argv[])
   }
 
 
+
   char ipstr[INET_ADDRSTRLEN] = {'\0'};
   inet_ntop(addr.sin_family, &addr.sin_addr, ipstr, sizeof(ipstr));
   
   //Output the automatically binded IP address.
   std::cerr << ipstr << std::endl;
   std::cerr << ntohs(addr.sin_port) << std::endl;
+
 
 
   close(sockfd);
