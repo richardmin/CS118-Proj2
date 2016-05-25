@@ -2,14 +2,16 @@
 #include <string.h>
 #include <unistd.h>
 #include <netdb.h>
-
-#include <netinet/in.h>
+#include <signal.h>
 
 #include <arpa/inet.h>
+
+#include <netinet/in.h>
 
 #include <sys/uio.h>
 #include <sys/socket.h>
 #include <sys/types.h>
+#include <sys/stat.h>
 
 #include <string>
 #include <thread>
@@ -18,8 +20,8 @@
 #include <thread>
 
 // Tutorial regarding sending arbitrary packet frames. 
-// http://www.microhowto.info/howto/send_an_arbitrary_ethernet_frame_using_an_af_packet_socket_in_c.html
-
+// http://www.microhowto.info/howto/listen_for_and_receive_udp_datagrams_in_c.html
+// http://beej.us/net2/html/syscalls.html
 int main(int argc, char* argv[])
 {
   int portnum = -1;
@@ -50,9 +52,9 @@ int main(int argc, char* argv[])
   else //valid file
   {
     int fd = fileno(fp);
-    struct stat stat;
-    fstat(fd, &stat);
-    if (!S_ISREG(stat.st_mode)) //Make sure we can deliver file contents (Regular File)
+    struct stat stats;
+    fstat(fd, &stats);
+    if (!S_ISREG(stats.st_mode)) //Make sure we can deliver file contents (Regular File)
     {
       std::cerr << "File " << argv[2] << " not a regular file" << std::endl;
       exit(2);
@@ -62,9 +64,8 @@ int main(int argc, char* argv[])
   //-------------- Set up socket connection ------------//
   signal(SIGPIPE, SIG_IGN); //Ignore poorly terminated connections from terminating our server
 
-  // create a socket with custom protocol and connectionless state
-  // http://linux.die.net/man/7/packet
-  int sockfd = socket(AF_PACKET, SOCK_DGRAM, 0);
+  // create a socket with UDP
+  int sockfd = socket(AF_INET, SOCK_DGRAM, 0);
   if(sockfd == -1)
   {
     perror("socket");
@@ -79,11 +80,11 @@ int main(int argc, char* argv[])
   }
 
   // bind address to socket
-  struct sockaddr_ll addr;
-  addr.sll_family = AF_PACKET;
-  addr.sll_port = htons(portnum); 
-  addr.sll_addr.s_addr = inet_addr(hostname_cstr);
-  memset(addr.sll_zero, '\0', sizeof(addr.sin_zero));
+  struct sockaddr_in addr;
+  addr.sin_family = AF_INET;
+  addr.sin_port = htons(portnum); 
+  addr.sin_addr.s_addr = inet_addr("10.0.0.1"); //use your own IP address. 
+  memset(addr.sin_zero, '\0', sizeof(addr.sin_zero));
 
   //bind the socket
   if (bind(sockfd, (struct sockaddr*)&addr, sizeof(addr)) == -1) {
@@ -91,5 +92,15 @@ int main(int argc, char* argv[])
     exit(5);
   }
 
+
+  char ipstr[INET_ADDRSTRLEN] = {'\0'};
+  inet_ntop(addr.sin_family, &addr.sin_addr, ipstr, sizeof(ipstr));
+  
+  //Output the automatically binded IP address.
+  std::cerr << ipstr << std::endl;
+  std::cerr << ntohs(addr.sin_port) << std::endl;
+
+
+  close(sockfd);
 
 }

@@ -4,7 +4,7 @@ BOOST=
 CXXFLAGS= -g $(CXXOPTIMIZE) -pthread -Wall -std=c++11 
 LIBRARIES=$(BOOST)
 USERID=lab2_joanne_richard
-UTIL_CLASSES=utils/IPResolver.o utils/string_lib.o
+UTIL_CLASSES=utils/IPResolver.o utils/string_lib.o utils/TCPManager.o
 
 .PHONY: all
 all: client server
