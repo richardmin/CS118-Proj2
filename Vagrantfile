@@ -1,9 +1,15 @@
 # -*- mode: ruby -*-
 # vi: set ft=ruby :
+system("
+    if [ #{ARGV[0]} = 'up' ]; then
+        tc qdisc add dev eth1 root netem loss 10% delay 20 ms
+    fi
+")
+
 
 $INSTALL_BASE = <<SCRIPT
   sudo apt-get update
-  sudo apt-get install -y build-essential vim emacs libboost-all-dev
+  sudo apt-get install -y build-essential vim emacs libboost-all-dev git
 SCRIPT
 
 Vagrant.configure(2) do |config|
