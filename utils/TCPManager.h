@@ -12,15 +12,5 @@ int custom_recv(int sockfd, void* buf, size_t len, int flags);
 int custom_send(int sockfd, void* buf, size_t len, int flags);
 
 
-struct packet_headers {
-	uint16_t h_seq;
-	uint16_t h_ack;
-	uint16_t h_window;
-	uint16_t flags;
-};
-
-#define ACK_FLAG 0x4
-#define SYN_FLAG 0x2
-#define FIN_FLAG 0x1
 
 #endif
