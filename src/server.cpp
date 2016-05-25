@@ -3,6 +3,8 @@
 #include <unistd.h>
 #include <netdb.h>
 #include <signal.h>
+#include <stdlib.h>
+#include <time.h>
 
 #include <arpa/inet.h>
 
@@ -23,8 +25,12 @@
 // Tutorial regarding sending arbitrary packet frames. 
 // http://www.microhowto.info/howto/listen_for_and_receive_udp_datagrams_in_c.html
 // http://beej.us/net2/html/syscalls.html
+
 int main(int argc, char* argv[])
 {
+  srand(time(NULL));  //note that we must do this for our TCP ack/sequence numbers to be random
+
+
   int portnum = -1;
   std::string filename;
 
@@ -44,13 +50,13 @@ int main(int argc, char* argv[])
 
   //------------- Open the file ----------------//
   FILE* fp = fopen(argv[2], "r"); //read-only: we're not going to be modifying the file at all.
-  if (fp == NULL) //file not found 
+  if (fp == NULL) 
   {
     perror("open");
     std::cerr << "File " << argv[2] << " not found" << std::endl;
     exit(2);
   }
-  else //valid file
+  else 
   {
     int fd = fileno(fp);
     struct stat stats;
@@ -84,7 +90,7 @@ int main(int argc, char* argv[])
   struct sockaddr_in addr;
   addr.sin_family = AF_INET;
   addr.sin_port = htons(portnum); 
-  addr.sin_addr.s_addr = inet_addr("10.0.0.1"); //use your own IP address. 
+  addr.sin_addr.s_addr = inet_addr("10.0.0.1"); //use your own IP address. We assume the server is reserved to an IP address here.
   memset(addr.sin_zero, '\0', sizeof(addr.sin_zero));
 
   //bind the socket
@@ -94,6 +100,12 @@ int main(int argc, char* argv[])
   }
 
 
+  //--------------- Establish TCP Handshake -----------//
+  int r = custom_listen(sockfd, 1); //note that backlog is ignored in our implementation
+  if(r == -1)
+  {
+    //
+  }
 
   char ipstr[INET_ADDRSTRLEN] = {'\0'};
   inet_ntop(addr.sin_family, &addr.sin_addr, ipstr, sizeof(ipstr));
