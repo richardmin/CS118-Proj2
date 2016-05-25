@@ -21,18 +21,19 @@
  * Usage: resolveIP(hostname)
  * --------------------------------
  * Post-conditions: hostname is a string that contains one of the IPs that the hostname passed in to the function resolves to.
- * 				         	Note that if the IP address is unresolvable the function exits horribly.
+ * 				         	Note that if the IP address is unresolvable the function returns -1.
  * 
  * This function is a wrapper for the C String version of the function.
  */
-void resolveIP(std::string& hostname)
+int resolveIP(std::string& hostname)
 {
   char* hostname_cstr = stringToCString(hostname);
   
-  resolveIP_cstr(hostname_cstr);  
+  int r = resolveIP_cstr(hostname_cstr);  
   hostname = std::string(hostname_cstr);
   
   free(hostname_cstr);
+  return r;
 }
 
 /**
@@ -40,11 +41,11 @@ void resolveIP(std::string& hostname)
  * Usage: resolveIP(hostname)
  * --------------------------------
  * Post-conditions: hostname is a c-string that contains one of the IPs that the hostname passed in to the function resolves to.
- * 					        Note that if the IP address is unresolvable the function exits horribly.
+ * 					        Note that if the IP address is unresolvable the function returns -1.
  * 
  * This function chooses the FIRST ip address that the hostname passed in resolves to. 
  */
-void resolveIP_cstr(char* hostname)
+int resolveIP_cstr(char* hostname)
 {
   struct addrinfo hints;
   struct addrinfo* res;
@@ -58,7 +59,7 @@ void resolveIP_cstr(char* hostname)
   int status = 0;
   if ((status = getaddrinfo(hostname, "80", &hints, &res)) != 0) {
     std::cerr << "couldn't resolve IP address: " << gai_strerror(status) << std::endl;
-    exit(1);
+    return -1;
   }
 
     // convert address to IPv4 address
@@ -71,12 +72,13 @@ void resolveIP_cstr(char* hostname)
   if(strlen(hostname) < strlen(ipstr)) //not enough space to hold ipstr
     if(realloc(hostname, (sizeof(char) + 1) * strlen(ipstr)) != 0){
       std::cerr << "Realloc Failed" << std::endl;
-      exit(1);
+      return -1;
     }
   
   strcpy(hostname, ipstr);
 
   freeaddrinfo(res); // free the linked list
+  return 0;
 }
 
 

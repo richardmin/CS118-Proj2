@@ -3,7 +3,7 @@
 
 #include <string>
 
-void resolveIP(std::string& hostname);
-void resolveIP_cstr(char* hostname);
+int resolveIP(std::string& hostname);
+int resolveIP_cstr(char* hostname);
 
 #endif
