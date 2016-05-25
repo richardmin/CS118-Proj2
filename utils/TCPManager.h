@@ -3,6 +3,7 @@
 
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/time.h>
 
 class TCPManager
 {
@@ -15,6 +16,11 @@ public:
 	TCPManager();
 	~TCPManager();
 private:
+	int last_syn_num;
+	int last_ack_num;
+	struct timespec last_received_msg_time;
+
+	bool connection_established;
 }
 
 

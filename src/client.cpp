@@ -21,8 +21,6 @@
 // http://www.microhowto.info/howto/send_a_udp_datagram_in_c.html
 int main(int argc, char* argv[])
 {
-  srand(time(NULL));  //note that we must do this for our TCP ack/sequence numbers to be random
-
   int portnum = -1;
   char* IP;
   //-------------- Parse Command Line Arguments ----------------//
@@ -84,6 +82,8 @@ int main(int argc, char* argv[])
   }
 
   free(IP);
+
+  TCPManager t = new TCPManager();
 
 
   close(sockfd);
