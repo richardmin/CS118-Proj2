@@ -17,6 +17,12 @@
 #include "../utils/IPResolver.h"
 #include "../utils/TCPManager.h"
 
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include "../utils/TCPConstants.h"
+#include <stdint.h>
+
 // Tutorial regarding sending arbitrary packet frames. 
 // http://www.microhowto.info/howto/send_a_udp_datagram_in_c.html
 int main(int argc, char* argv[])
@@ -48,11 +54,11 @@ int main(int argc, char* argv[])
     exit(4);
   }
 
-  printf("bind complete. Port number = %d\n", ntohs(myaddr.sin_port));
-  
-  packet_headers syn_packet = {next_seq_num(0), NOT_IN_USE, INIT_RECV_WINDOW, SYN_FLAG};
+  printf("bind complete. Port number = %d\n", ntohs(addr.sin_port));
+
+  packet_headers syn_packet = {12598, (uint16_t)NOT_IN_USE, INIT_RECV_WINDOW, SYN_FLAG};
   //send the initial syn packet
-  if ( !sendto(sockfd, &syn_packet, PACKET_HEADER_LENGTH, 0, addr, addrlen) ) {
+  if ( !sendto(sockfd, &syn_packet, PACKET_HEADER_LENGTH, 0, (struct sockaddr*)&addr, sizeof(addr)) ) {
     std::cerr << "Error: Could not send syn_packet" << std::endl;
     return -1;
   }

@@ -101,6 +101,7 @@ int TCPManager::custom_connect(int sockfd, const struct sockaddr * addr, socklen
 
 		} while(result.tv_nsec > 50000000); //5 milliseconds = 50000000 nanoseconds
 	}
+	return -1;
 
 }
 
