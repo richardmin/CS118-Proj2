@@ -78,6 +78,8 @@ int TCPManager::next_seq_num(int datalen)
 	
 	int cached_seq_num = last_seq_num;
 	last_seq_num += datalen;
+	if(last_seq_num >= MAX_SEQUENCE_NUMBER) //this might overflow if you pass in too large a number for datalen
+		last_seq_num -= MAX_SEQUENCE_NUMBER;
 	return cached_seq_num;
 }
 
@@ -86,11 +88,15 @@ int TCPManager::next_seq_num(int datalen)
  * Usage: next_ack_num(len)
  * -------------------------
  * This function generates the next ack number. last_ack_num should be set by the connection.
+ * 
  */
 int TCPManager::next_ack_num(int datalen)
 {
 	if(!connected_established)
 		return -1;
+	int cached_ack_num = last_ack_num
 	last_ack_num += datalen;
+	if(last_seq_num >= MAX_SEQUENCE_NUMBER) //this might overflow if you pass in too large a number for datalen
+		last_seq_num -= MAX_SEQUENCE_NUMBER;
 	return last_ack_num;
 }
