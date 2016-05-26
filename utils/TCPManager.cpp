@@ -28,9 +28,9 @@ TCPManager::~TCPManager()
  * Usage: custom_accept(sockfd, &addr, sizeof(addr), 0)
  * ------------------
  * This function blocks, listening for incoming SYNs and responds with a SYN-ACK.
- * After responding with a SYN-ACK, it remembers 
+ * After responding with a SYN-ACK, it remembers (connects) to the client.
  */
-int TCPManager::custom_accept(int sockfd, struct sockaddr *addr, socklen_t addrlen, int flags)
+int TCPManager::custom_accept(int sockfd)
 {
 	char buffer[MAX_PACKET_LENGTH];
 	sockaddr_in client_addr;
@@ -52,8 +52,19 @@ int TCPManager::custom_accept(int sockfd, struct sockaddr *addr, socklen_t addrl
 			return -1;
 		}
 		
-		//Store the Syn-num
-		
+		//Decompose the header data
+		uint16_t seqnum = (buf[0] * 256 | buf[1]);
+        uint16_t acknum = (buf[2] * 256 | buf[3]);
+        uint16_t winnum = (buf[4] * 256 | buf[5]);
+        uint16_t flags = (buf[6] * 256 | buf[7]);
+
+        last_seq_num = seqnum;
+        
+        if (!(flags & SYN_FLAG ^ flags)) //check that ONLY the syn flag is set.
+        {
+        	std::cerr << "Received non-syn packet!" << std::endl;
+        	return -1;
+        }
 		//Send SYN-ACK
 		packet_headers synack_packet = {next_seq_num(0), next_ack_num(1), INIT_RECV_WINDOW, SYN_FLAG | ACK_FLAG};
 		if (! sendto(sockfd, &synack_packet, PACKET_HEADER_LENGTH, 0, (struct sockaddr *) &client_addr, client_addrlen) ) {
@@ -62,7 +73,7 @@ int TCPManager::custom_accept(int sockfd, struct sockaddr *addr, socklen_t addrl
 		}
 	}
 	
-	return 1;
+	return 0;
 }
 
 /**
@@ -70,7 +81,7 @@ int TCPManager::custom_accept(int sockfd, struct sockaddr *addr, socklen_t addrl
  * Usage: custom_connect(sockfd, &addr, sizeof(addr))
  * -----------------------------
  * This function sends a UDP SYN message, and waits for the SYN-ACK to be received. 
- * It then sends a ACK. 
+ * It then sends a ACK. Sockfd is the socket you're sending over, and the sockaddr is the socket address you are sending to. 
  */
 int TCPManager::custom_connect(int sockfd, const struct sockaddr * addr, socklen_t addrlen)
 {

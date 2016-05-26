@@ -41,7 +41,7 @@ int main(int argc, char* argv[])
     exit(3);
   }
 
-  // bind address to socket
+  // bind address to socket, so that the socket number cannot be reassigned by other processes
   struct sockaddr_in addr;
   addr.sin_family = AF_INET;
   addr.sin_port = htons(3000); 
