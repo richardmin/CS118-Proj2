@@ -11,6 +11,9 @@
 #include <time.h>
 #include <thread>
 
+#include <string.h>	//mem_cpy()
+
+
 TCPManager::TCPManager()
 {
 	srand(time(NULL)); //note that we must do this for our TCP ack/sequence numbers to be random
@@ -43,19 +46,25 @@ int TCPManager::custom_accept(int sockfd, struct sockaddr *addr, socklen_t addrl
 	else if (count > MAX_PACKET_LENGTH) {
 		std::cerr << "Datagram too large for buffer" << std::endl;
 		return -1;
-	}
+	} /*
+	else if (count != PACKET_HEADER_LENGTH) {
+		std::cerr << "Unexpected bits when establishing connection" << std::endl;
+		return -1;
+	} */
 	else {
-
-		if (count != PACKET_HEADER_LENGTH) //too many bytes sent.
-		{
-			std::cerr << "Unexpected bits when establishing connection" << std::endl;
+		//Check for Syn-flag only
+		if ( buffer[7] & 0x04 != SYN_FLAG) {
+			std::cerr << "Must have SYN_FLAG for initial message" << std::endl;
 			return -1;
 		}
+		//Extract the Seq-num from received syn packet????????????
+		uint16_t recieved_seqNum = (buffer[0] << 8) + buffer[1];
+		last_seq_num = recieved_seqNum;
+		//Store the recv-window from received syn packet?????????
+		recvr_window = (buffer[4] << 8) + buffer[5];
 		
-		//Store the Syn-num
-		
-		//Send SYN-ACK
-		packet_headers synack_packet = {next_seq_num(0), next_ack_num(1), INIT_RECV_WINDOW, SYN_FLAG | ACK_FLAG};
+		//Send SYN-ACK back to client
+		packet_headers synack_packet = {next_seq_num(0), next_ack_num(1), recvr_window, SYN_FLAG | ACK_FLAG};
 		if (! sendto(sockfd, &synack_packet, PACKET_HEADER_LENGTH, 0, (struct sockaddr *) &client_addr, &client_addrlen) ) {
 			std::cerr << "Error: could not send synack_packet" << std::endl;
 			return -1;
@@ -107,12 +116,7 @@ int TCPManager::custom_recv(int sockfd, void* buf, size_t len, int flags)
 
 int TCPManager::custom_send(int sockfd, void* buf, size_t len, int flags)
 {
-	/*
-	if (! sendto(sockfd, buf, len, 0, (struct sockaddr *) &addr, &addrlen) ) {
-		std::cerr << "Error: could not send synack_packet" << std::endl;
-		return -1;
-	}
-	*/
+	
 	return -1;
 }
 
@@ -148,6 +152,8 @@ uint16_t TCPManager::next_seq_num(int datalen)
  * This function generates the next ack number. last_ack_num should be set by the connection.
  * 
  */
+ 
+ /*
 uint16_t TCPManager::next_ack_num(int datalen)
 {
 	if(!connection_established)
@@ -155,10 +161,25 @@ uint16_t TCPManager::next_ack_num(int datalen)
 
 	int cached_ack_num = last_ack_num;
 	last_ack_num += datalen;
-	if(last_seq_num >= MAX_SEQUENCE_NUMBER) //this might overflow if you pass in too large a number for datalen
-		last_seq_num -= MAX_SEQUENCE_NUMBER;
+	if(last_ack_num >= MAX_SEQUENCE_NUMBER) //this might overflow if you pass in too large a number for datalen
+		last_ack_num -= MAX_SEQUENCE_NUMBER;
 	return cached_ack_num;
 }
+*/
+
+uint16_t TCPManager::next_ack_num(int datalen)
+{
+	if(!connection_established)
+		return -1;
+
+	//Next ack number will be the recieved_seqNum + datalen
+	int next_ack_num = last_seq_num + datalen;
+	if (next_ack_num >= MAX_SEQUENCE_NUMBER)
+		next_ack_num -= MAX_SEQUENCE_NUMBER;
+
+	return next_ack_num;
+}
+
 
 /* Subtract the ‘struct timeval’ values X and Y,
    storing the result in RESULT.
