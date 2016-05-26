@@ -67,9 +67,21 @@ int main(int argc, char* argv[])
             printf("waiting on port %d\n", 3000);
             int recvlen = recvfrom(sockfd, buf, BUFSIZE, 0, (struct sockaddr *)&remaddr, &addrlen);
             printf("received %d bytes\n", recvlen);
-            if (recvlen > 0) {
+
+            // int seqnum = ntohs(buf[0] * 256 | buf[1]);
+            // int acknum = ntohs(buf[2] * 256 | buf[3]);
+            // int winnum = ntohs(buf[4] * 256 | buf[5]);
+            // int flags = ntohs(buf[6] * 256 | buf[7]);
+
+
+            //Apparently, recvfrom automatically converts network to byte order. 
+            int seqnum = (buf[0] * 256 | buf[1]);
+            int acknum = (buf[2] * 256 | buf[3]);
+            int winnum = (buf[4] * 256 | buf[5]);
+            int flags = (buf[6] * 256 | buf[7]);
+            if (recvlen > 0) { 
                     buf[recvlen] = 0;
-                    printf("received message: \"%s\"\n", buf);
+                    printf("received message: \"%d %d %d %d\"\n", seqnum, acknum, winnum, flags);
             }
     }
   // int portnum = -1;

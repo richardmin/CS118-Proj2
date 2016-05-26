@@ -61,14 +61,15 @@ int main(int argc, char* argv[])
 
   printf("bind complete. Port number = %d\n", ntohs(addr.sin_port));
 
-  packet_headers syn_packet = {12598, (uint16_t)NOT_IN_USE, INIT_RECV_WINDOW, SYN_FLAG};
+  packet_headers syn_packet = {htons(244), htons((uint16_t)NOT_IN_USE), htons(INIT_RECV_WINDOW), htons(SYN_FLAG)};
   // send the initial syn packet
   if ( !sendto(sockfd, &syn_packet, PACKET_HEADER_LENGTH, 0, (struct sockaddr*)&rem_addr, sizeof(addr)) ) {
     std::cerr << "Error: Could not send syn_packet" << std::endl;
     return -1;
   }
 
-  std::cout << "Sequence Number: " << syn_packet.h_seq << " Acknoweldgement Number: " << syn_packet.h_ack << " Window Size: " << syn_packet.h_window << " Flags: " << syn_packet.flags << std::endl;
+  std::cout << "Sequence Number: " << ntohs(syn_packet.h_seq) << " Acknoweldgement Number: " << ntohs(syn_packet.h_ack)
+   << " Window Size: " << ntohs(syn_packet.h_window) << " Flags: " << ntohs(syn_packet.flags) << std::endl;
   // int portnum = -1;
   // char* IP;
   // //-------------- Parse Command Line Arguments ----------------//

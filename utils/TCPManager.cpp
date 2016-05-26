@@ -28,7 +28,7 @@ TCPManager::~TCPManager()
  * Usage: custom_accept(sockfd, &addr, sizeof(addr), 0)
  * ------------------
  * This function blocks, listening for incoming SYNs and responds with a SYN-ACK.
- * 
+ * After responding with a SYN-ACK, it remembers 
  */
 int TCPManager::custom_accept(int sockfd, struct sockaddr *addr, socklen_t addrlen, int flags)
 {
@@ -56,7 +56,7 @@ int TCPManager::custom_accept(int sockfd, struct sockaddr *addr, socklen_t addrl
 		
 		//Send SYN-ACK
 		packet_headers synack_packet = {next_seq_num(0), next_ack_num(1), INIT_RECV_WINDOW, SYN_FLAG | ACK_FLAG};
-		if (! sendto(sockfd, &synack_packet, PACKET_HEADER_LENGTH, 0, (struct sockaddr *) &client_addr, &client_addrlen) ) {
+		if (! sendto(sockfd, &synack_packet, PACKET_HEADER_LENGTH, 0, (struct sockaddr *) &client_addr, client_addrlen) ) {
 			std::cerr << "Error: could not send synack_packet" << std::endl;
 			return -1;
 		}
