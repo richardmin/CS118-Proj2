@@ -40,18 +40,34 @@ int TCPManager::custom_listen(int sockfd, int backlog)
 /* This function blocks, listening for incoming SYNs and responds with a SYN-ACK.*/
 int TCPManager::custom_accept(int sockfd, struct sockaddr *addr, socklen_t* addrlen, int flags)
 {
-	char buffer[MAX_PACKET_LENGTH+1];
+	char buffer[PACKET_HEADER_LENGTH + 1]; //Have to add +1 maybe???
 	ssize_t count = recvfrom(sockfd, buffer, sizeof(buffer), 0, addr, addrlen);
-	if (count == -1) 
+	if (count == -1) { 
+		std::cerr << "recvfrom() ran into error" << std::endl;
 		return -1;
-	else if (count == sizeof(buffer)) 
+	}
+	else if (count >= sizeof(buffer)) {
 		std::cerr << "Datagram too large for buffer" << std::endl;
+		return -1;
+	}
 	else {
 		//Check for SYN flag
+		if (count != PACKET_HEADER_LENGTH || !(0x02 & buffer)) {
+			std::cerr << "Must have SYN flag" << std::endl;
+			return -1;
+		}
+		//Store the seq-num
+		last_seq_num = 0xFFFF & (buffer >> 48);
 		
+		//Send SYN-ACK
+		packet_headers synack_packet = {next_seq_num(0), next_ack_num(1), INIT_RECV_WINDOW, SYN_FLAG | ACK_FLAG};
+		if (! sendto(sockfd, &synack_packet, PACKET_HEADER_LENGTH, 0, addr, addrlen) ) {
+			std::cerr << "Error: could not send synack_packet" << std::endl;
+			return -1
+		}
 	}
 	
-	return -1;
+	return 1;
 }
 
 /**
@@ -64,9 +80,9 @@ int TCPManager::custom_accept(int sockfd, struct sockaddr *addr, socklen_t* addr
 int TCPManager::custom_connect(int sockfd, const struct sockaddr * addr, socklen_t addrlen)
 {
 
-	packet_headers syn_packet = {next_seq_num(0), 0, INIT_RECV_WINDOW, SYN_FLAG};
+	packet_headers syn_packet = {next_seq_num(0), -1, INIT_RECV_WINDOW, SYN_FLAG};
 	//send the initial syn packet
-	if ( !sendto(sockfd, syn_packet, PACKET_HEADER_LENGTH, 0, addr, addrlen) ) {
+	if ( !sendto(sockfd, &syn_packet, PACKET_HEADER_LENGTH, 0, addr, addrlen) ) {
 		std::cerr << "Error: Could not send syn_packet" << std::endl;
 		return -1;
 	}
