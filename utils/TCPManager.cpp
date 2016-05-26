@@ -133,6 +133,7 @@ int TCPManager::custom_send(int sockfd, void* buf, size_t len, int flags)
  * Note that syn/acks are one byte each.
  */
 
+/*
 uint16_t TCPManager::next_seq_num(int datalen)
 {
 	//generate the first seq number
@@ -145,6 +146,21 @@ uint16_t TCPManager::next_seq_num(int datalen)
 		last_seq_num -= MAX_SEQUENCE_NUMBER;
 	return cached_seq_num;
 }
+*/
+
+uint16_t TCPManager::next_seq_num(int datalen)
+{
+	//generate the first seq number
+	if(last_seq_num == -1)
+		last_seq_num = rand() % MAX_SEQUENCE_NUMBER;
+
+	uint16_t next_seq_num = last_ack_num;
+	last_ack_num += datalen;
+	if (last_ack_num >= MAX_SEQUENCE_NUMBER)
+			last_ack_num -= MAX_SEQUENCE_NUMBER;
+	return next_seq_num;
+}
+
 
 /**
  * Function: next_ack_num()
