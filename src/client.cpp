@@ -38,7 +38,7 @@ int main(int argc, char* argv[])
   // bind address to socket
   struct sockaddr_in addr;
   addr.sin_family = AF_INET;
-  addr.sin_port = htons(3000); 
+  addr.sin_port = htons(0); 
   addr.sin_addr.s_addr = inet_addr(INADDR_ANY); 
   memset(addr.sin_zero, '\0', sizeof(addr.sin_zero));
 
@@ -48,6 +48,8 @@ int main(int argc, char* argv[])
     exit(4);
   }
 
+  printf("bind complete. Port number = %d\n", ntohs(myaddr.sin_port));
+  
   packet_headers syn_packet = {next_seq_num(0), NOT_IN_USE, INIT_RECV_WINDOW, SYN_FLAG};
   //send the initial syn packet
   if ( !sendto(sockfd, &syn_packet, PACKET_HEADER_LENGTH, 0, addr, addrlen) ) {

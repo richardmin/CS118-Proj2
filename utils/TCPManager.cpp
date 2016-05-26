@@ -16,10 +16,10 @@ TCPManager::TCPManager()
 	srand(time(NULL)); //note that we must do this for our TCP ack/sequence numbers to be random
 	last_seq_num = -1;
 	last_ack_num = -1;
-	connected_established = false;
+	connection_established = false;
 }
 
-~TCPManager::TCPManager()
+TCPManager::~TCPManager()
 {
 }
 
@@ -30,21 +30,21 @@ TCPManager::TCPManager()
  * This function blocks, listening for incoming SYNs and responds with a SYN-ACK.
  * 
  */
-int TCPManager::custom_accept(int sockfd, struct sockaddr *addr, socklen_t* addrlen, int flags)
+int TCPManager::custom_accept(int sockfd, struct sockaddr *addr, socklen_t addrlen, int flags)
 {
 	char buffer[MAX_PACKET_LENGTH];
-	ssize_t count = recvfrom(sockfd, buffer, sizeof(buffer), 0, addr, addrlen);
+	ssize_t count = recvfrom(sockfd, buffer, MAX_PACKET_LENGTH, 0, 0, 0);
 	if (count == -1) { 
 		std::cerr << "recvfrom() ran into error" << std::endl;
 		return -1;
 	}
-	else if (count >= sizeof(buffer)) {
+	else if (count > MAX_PACKET_LENGTH) {
 		std::cerr << "Datagram too large for buffer" << std::endl;
 		return -1;
 	}
 	else {
 
-		if (count != PACKET_HEADER_LENGTH) //too many packets sent.
+		if (count != 8) //too many bytes sent.
 		{
 			std::cerr << "Unexpected bits when establishing connection" << std::endl;
 			return -1;
@@ -54,15 +54,15 @@ int TCPManager::custom_accept(int sockfd, struct sockaddr *addr, socklen_t* addr
 			std::cerr << "Must have SYN flag" << std::endl;
 			return -1;
 		}
-		
+
 		//Store the seq-num
-		last_seq_num = 0xFFFF & (buffer >> 48);
+		// last_seq_num = 0xFFFF & (buffer >> 48);
 		
 		//Send SYN-ACK
 		packet_headers synack_packet = {next_seq_num(0), next_ack_num(1), INIT_RECV_WINDOW, SYN_FLAG | ACK_FLAG};
 		if (! sendto(sockfd, &synack_packet, PACKET_HEADER_LENGTH, 0, addr, addrlen) ) {
 			std::cerr << "Error: could not send synack_packet" << std::endl;
-			return -1
+			return -1;
 		}
 	}
 	
@@ -79,7 +79,7 @@ int TCPManager::custom_accept(int sockfd, struct sockaddr *addr, socklen_t* addr
 int TCPManager::custom_connect(int sockfd, const struct sockaddr * addr, socklen_t addrlen)
 {
 
-	packet_headers syn_packet = {next_seq_num(0), NOT_IN_USE, INIT_RECV_WINDOW, SYN_FLAG};
+	packet_headers syn_packet = {next_seq_num(0), (uint16_t)NOT_IN_USE, INIT_RECV_WINDOW, SYN_FLAG};
 	//send the initial syn packet
 	if ( !sendto(sockfd, &syn_packet, PACKET_HEADER_LENGTH, 0, addr, addrlen) ) {
 		std::cerr << "Error: Could not send syn_packet" << std::endl;
@@ -97,9 +97,9 @@ int TCPManager::custom_connect(int sockfd, const struct sockaddr * addr, socklen
 			clock_gettime(CLOCK_MONOTONIC, &tmp);
 			//wait for a response quietly.
 			timespec_subtract(&result, &last_received_msg_time, &tmp);
-			std::cout << result->tv_nsec << std::endl;
+			std::cout << result.tv_nsec << std::endl;
 
-		} while(result->tv_nsec > 50000000); //5 milliseconds = 50000000 nanoseconds
+		} while(result.tv_nsec > 50000000); //5 milliseconds = 50000000 nanoseconds
 	}
 
 }
@@ -126,7 +126,7 @@ int TCPManager::custom_send(int sockfd, void* buf, size_t len, int flags)
  * Note that syn/acks are one byte each.
  */
 
-int TCPManager::next_seq_num(int datalen)
+uint16_t TCPManager::next_seq_num(int datalen)
 {
 	//generate the first seq number
 	if(last_seq_num == -1)
@@ -146,24 +146,23 @@ int TCPManager::next_seq_num(int datalen)
  * This function generates the next ack number. last_ack_num should be set by the connection.
  * 
  */
-int TCPManager::next_ack_num(int datalen)
+uint16_t TCPManager::next_ack_num(int datalen)
 {
-	if(!connected_established)
+	if(!connection_established)
 		return -1;
 
-	int cached_ack_num = last_ack_num
+	int cached_ack_num = last_ack_num;
 	last_ack_num += datalen;
 	if(last_seq_num >= MAX_SEQUENCE_NUMBER) //this might overflow if you pass in too large a number for datalen
 		last_seq_num -= MAX_SEQUENCE_NUMBER;
-	return last_ack_num;
+	return cached_ack_num;
 }
 
 /* Subtract the ‘struct timeval’ values X and Y,
    storing the result in RESULT.
    Return 1 if the difference is negative, otherwise 0. */
    //Modified From http://www.gnu.org/software/libc/manual/html_node/Elapsed-Time.html
-int TCPManager::timespec_subtract (result, y, x)
-     struct timespec *result, *y, *x;
+int TCPManager::timespec_subtract (struct timespec *result, struct timespec *y, struct timespec *x)
 {
   /* Perform the carry for the later subtraction by updating y. */
   if (x->tv_nsec < y->tv_nsec) {

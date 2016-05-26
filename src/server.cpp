@@ -21,6 +21,7 @@
 
 #include "../utils/TCPManager.h"
 
+
 // Tutorial regarding sending arbitrary packet frames. 
 // http://www.microhowto.info/howto/listen_for_and_receive_udp_datagrams_in_c.html
 // http://beej.us/net2/html/syscalls.html
@@ -45,7 +46,7 @@ int main(int argc, char* argv[])
   // bind address to socket
   struct sockaddr_in addr;
   addr.sin_family = AF_INET;
-  addr.sin_port = htons(portnum); 
+  addr.sin_port = htons(3000); 
   addr.sin_addr.s_addr = htonl(INADDR_ANY); //use your own IP address. We assume the server is reserved to an IP address here.
   memset(addr.sin_zero, '\0', sizeof(addr.sin_zero));
 
@@ -55,7 +56,18 @@ int main(int argc, char* argv[])
     exit(5);
   }
 
-
+  int BUFSIZE = 2048;
+  struct sockaddr_in remaddr;     /* remote address */
+  unsigned char buf[BUFSIZE];     /* receive buffer */
+  for (;;) {
+            printf("waiting on port %d\n", PORT);
+            recvlen = recvfrom(sockfd, buf, BUFSIZE, 0, (struct sockaddr *)&remaddr, &addrlen);
+            printf("received %d bytes\n", recvlen);
+            if (recvlen > 0) {
+                    buf[recvlen] = 0;
+                    printf("received message: \"%s\"\n", buf);
+            }
+    }
   // int portnum = -1;
   // std::string filename;
 

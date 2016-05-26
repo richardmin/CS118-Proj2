@@ -11,8 +11,8 @@
 class TCPManager
 {
 public:
-	int custom_accept(int sockfd, struct sockaddr *addr, socklen_t* addrlen, int flags);
-	int custom_connect(int sockfd, const struct sockaddr * addr, socklen_t addrlen);
+	int custom_accept(int sockfd, struct sockaddr *addr, socklen_t addrlen, int flags);
+	int custom_connect(int sockfd, const struct sockaddr *addr, socklen_t addrlen);
 	int custom_recv(int sockfd, void* buf, size_t len, int flags);
 	int custom_send(int sockfd, void* buf, size_t len, int flags);
 
@@ -25,8 +25,8 @@ private:
 
 	bool connection_established;
 
-	int next_seq_num(int datalen);
-	int next_ack_num(int datalen);
+	uint16_t next_seq_num(int datalen);
+	uint16_t next_ack_num(int datalen);
 
 	int wait_for_packet();
 
@@ -34,7 +34,7 @@ private:
 
 
 	// int update_
-}
+};
 
 
 #endif
