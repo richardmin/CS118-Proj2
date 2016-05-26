@@ -32,7 +32,6 @@ TCPManager::TCPManager()
  */
 int TCPManager::custom_listen(int sockfd, int backlog)
 {
-	
 	return -1;
 }
 
@@ -51,14 +50,29 @@ int TCPManager::custom_accept(int sockfd, struct sockaddr *addr, socklen_t* addr
  */
 int TCPManager::custom_connect(int sockfd, const struct sockaddr * addr, socklen_t addrlen)
 {
-	/*
-	packet_headers syn_packet = {rand(), 0, INIT_RECV_WINDOW, SYN_FLAG};
-	if ( !sendto(sockfd, syn_packet, PACKET_HEADER_LENGTH, , addr, addrlen) ) {
+
+	packet_headers syn_packet = {next_seq_num(0), 0, INIT_RECV_WINDOW, SYN_FLAG};
+	//send the initial syn packet
+	if ( !sendto(sockfd, syn_packet, PACKET_HEADER_LENGTH, 0, addr, addrlen) ) {
 		std::cerr << "Error: Could not send syn_packet" << std::endl;
-		exit(1);
+		return -1;
 	}
-	*/
-	return -1;
+
+	clock_gettime(CLOCK_MONOTONIC, &last_received_msg_time);
+	struct timespec result;
+	bool message_received = false;
+	while(!message_received)
+	{
+		do
+		{
+			struct timespec tmp;
+			clock_gettime(CLOCK_MONOTONIC, &tmp);
+			//wait for a response quietly.
+			timespec_subtract(&result, &last_received_msg_time, &tmp);
+			std::cout << result->tv_nsec << std::endl;
+
+		} while(result->tv_nsec > 50000000); //5 milliseconds = 50000000 nanoseconds
+	}
 }
 
 int TCPManager::custom_recv(int sockfd, void* buf, size_t len, int flags)
@@ -107,9 +121,38 @@ int TCPManager::next_ack_num(int datalen)
 {
 	if(!connected_established)
 		return -1;
+
 	int cached_ack_num = last_ack_num
 	last_ack_num += datalen;
 	if(last_seq_num >= MAX_SEQUENCE_NUMBER) //this might overflow if you pass in too large a number for datalen
 		last_seq_num -= MAX_SEQUENCE_NUMBER;
 	return last_ack_num;
+}
+
+/* Subtract the ‘struct timeval’ values X and Y,
+   storing the result in RESULT.
+   Return 1 if the difference is negative, otherwise 0. */
+   //Modified From http://www.gnu.org/software/libc/manual/html_node/Elapsed-Time.html
+int TCPManager::timespec_subtract (result, y, x)
+     struct timespec *result, *y, *x;
+{
+  /* Perform the carry for the later subtraction by updating y. */
+  if (x->tv_nsec < y->tv_nsec) {
+    int nsec = (y->tv_nsec - x->tv_nsec) / BILLION + 1;
+    y->tv_nsec -= BILLION * nsec;
+    y->tv_sec += nsec;
+  }
+  if (x->tv_nsec - y->tv_nsec > BILLION) {
+    int nsec = (x->tv_nsec - y->tv_nsec) / BILLION;
+    y->tv_nsec += BILLION * nsec;
+    y->tv_sec -= nsec;
+  }
+
+  /* Compute the time remaining to wait.
+     tv_nsec is certainly positive. */
+  result->tv_sec = x->tv_sec - y->tv_sec;
+  result->tv_nsec = x->tv_nsec - y->tv_nsec;
+
+  /* Return 1 if result is negative. */
+  return x->tv_sec < y->tv_sec;
 }
