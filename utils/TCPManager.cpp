@@ -23,24 +23,16 @@ TCPManager::TCPManager()
 {
 }
 
-/**
- * Function: custom_accept(int sockfd, int backlog)
- * Usage: custom_accept(sockfd, 1);
- * ------------------------------
- * This function does not block, listening for incoming SYNs on this socket?
- * This function blocks, listening for incoming ACKs and responds with a SYN-ACK. 
- * Backlog is ignored in our implementation (typically would be used for waiting for more connections on queue)
+/* 
+ * Function: custom_accept(int sockfd, struct sockaddr *addr, socklen_t* addrlen, int flags)
+ * Usage: custom_accept(sockfd, &addr, sizeof(addr), 0)
+ * ------------------
+ * This function blocks, listening for incoming SYNs and responds with a SYN-ACK.
+ * 
  */
-int TCPManager::custom_listen(int sockfd, int backlog)
-{
-	return -1;
-}
-
-
-/* This function blocks, listening for incoming SYNs and responds with a SYN-ACK.*/
 int TCPManager::custom_accept(int sockfd, struct sockaddr *addr, socklen_t* addrlen, int flags)
 {
-	char buffer[PACKET_HEADER_LENGTH + 1]; //Have to add +1 maybe???
+	char buffer[MAX_PACKET_LENGTH];
 	ssize_t count = recvfrom(sockfd, buffer, sizeof(buffer), 0, addr, addrlen);
 	if (count == -1) { 
 		std::cerr << "recvfrom() ran into error" << std::endl;
@@ -51,11 +43,18 @@ int TCPManager::custom_accept(int sockfd, struct sockaddr *addr, socklen_t* addr
 		return -1;
 	}
 	else {
-		//Check for SYN flag
-		if (count != PACKET_HEADER_LENGTH || !(0x02 & buffer)) {
+
+		if (count != PACKET_HEADER_LENGTH) //too many packets sent.
+		{
+			std::cerr << "Unexpected bits when establishing connection" << std::endl;
+			return -1;
+		}
+		if (!(SYN_FLAG & buffer[8])) 
+		{
 			std::cerr << "Must have SYN flag" << std::endl;
 			return -1;
 		}
+		
 		//Store the seq-num
 		last_seq_num = 0xFFFF & (buffer >> 48);
 		
@@ -80,7 +79,7 @@ int TCPManager::custom_accept(int sockfd, struct sockaddr *addr, socklen_t* addr
 int TCPManager::custom_connect(int sockfd, const struct sockaddr * addr, socklen_t addrlen)
 {
 
-	packet_headers syn_packet = {next_seq_num(0), -1, INIT_RECV_WINDOW, SYN_FLAG};
+	packet_headers syn_packet = {next_seq_num(0), NOT_IN_USE, INIT_RECV_WINDOW, SYN_FLAG};
 	//send the initial syn packet
 	if ( !sendto(sockfd, &syn_packet, PACKET_HEADER_LENGTH, 0, addr, addrlen) ) {
 		std::cerr << "Error: Could not send syn_packet" << std::endl;

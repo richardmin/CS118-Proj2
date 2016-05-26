@@ -17,6 +17,8 @@
 #define SYN_FLAG 0x2
 #define FIN_FLAG 0x1
 
+#define NOT_IN_USE -1
+
 struct packet_headers {
 	uint16_t h_seq;
 	uint16_t h_ack;
