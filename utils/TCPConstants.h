@@ -11,6 +11,7 @@
 #define INIT_CONGESTION_SIZE = 1024;
 #define INIT_SLOW_START_THRESH = 30720;
 #define RTT_VAL= 500;
+#define INIT_RECV_WINDOW = 30720;
 
 #define ACK_FLAG 0x4
 #define SYN_FLAG 0x2
