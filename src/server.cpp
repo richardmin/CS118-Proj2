@@ -21,6 +21,9 @@
 
 #include "../utils/TCPManager.h"
 
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 
 // Tutorial regarding sending arbitrary packet frames. 
 // http://www.microhowto.info/howto/listen_for_and_receive_udp_datagrams_in_c.html
@@ -58,10 +61,11 @@ int main(int argc, char* argv[])
 
   int BUFSIZE = 2048;
   struct sockaddr_in remaddr;     /* remote address */
+  socklen_t addrlen = sizeof(remaddr);  
   unsigned char buf[BUFSIZE];     /* receive buffer */
   for (;;) {
-            printf("waiting on port %d\n", PORT);
-            recvlen = recvfrom(sockfd, buf, BUFSIZE, 0, (struct sockaddr *)&remaddr, &addrlen);
+            printf("waiting on port %d\n", 3000);
+            int recvlen = recvfrom(sockfd, buf, BUFSIZE, 0, (struct sockaddr *)&remaddr, &addrlen);
             printf("received %d bytes\n", recvlen);
             if (recvlen > 0) {
                     buf[recvlen] = 0;

@@ -17,6 +17,12 @@
 #include "../utils/IPResolver.h"
 #include "../utils/TCPManager.h"
 
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include "../utils/TCPConstants.h"
+#include <stdint.h>
+
 // Tutorial regarding sending arbitrary packet frames. 
 // http://www.microhowto.info/howto/send_a_udp_datagram_in_c.html
 int main(int argc, char* argv[])
@@ -38,8 +44,8 @@ int main(int argc, char* argv[])
   // bind address to socket
   struct sockaddr_in addr;
   addr.sin_family = AF_INET;
-  addr.sin_port = htons(0); 
-  addr.sin_addr.s_addr = inet_addr(INADDR_ANY); 
+  addr.sin_port = htons(3000); 
+  addr.sin_addr.s_addr = htonl(INADDR_ANY); 
   memset(addr.sin_zero, '\0', sizeof(addr.sin_zero));
 
   //bind the socket
@@ -48,11 +54,16 @@ int main(int argc, char* argv[])
     exit(4);
   }
 
-  printf("bind complete. Port number = %d\n", ntohs(myaddr.sin_port));
-  
-  packet_headers syn_packet = {next_seq_num(0), NOT_IN_USE, INIT_RECV_WINDOW, SYN_FLAG};
-  //send the initial syn packet
-  if ( !sendto(sockfd, &syn_packet, PACKET_HEADER_LENGTH, 0, addr, addrlen) ) {
+  struct sockaddr_in rem_addr;
+  rem_addr.sin_family = AF_INET;
+  rem_addr.sin_port = htons(3000);
+  rem_addr.sin_addr.s_addr = inet_addr("10.0.0.3");
+
+  printf("bind complete. Port number = %d\n", ntohs(addr.sin_port));
+
+  packet_headers syn_packet = {12598, (uint16_t)NOT_IN_USE, INIT_RECV_WINDOW, SYN_FLAG};
+  // send the initial syn packet
+  if ( !sendto(sockfd, &syn_packet, PACKET_HEADER_LENGTH, 0, (struct sockaddr*)&rem_addr, sizeof(addr)) ) {
     std::cerr << "Error: Could not send syn_packet" << std::endl;
     return -1;
   }
