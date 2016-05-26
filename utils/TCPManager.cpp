@@ -14,8 +14,8 @@
 TCPManager::TCPManager()
 {
 	srand(time(NULL)); //note that we must do this for our TCP ack/sequence numbers to be random
-	last_seq_num = -1;
-	last_ack_num = -1;
+	last_seq_num = NOT_IN_USE;
+	last_ack_num = NOT_IN_USE;
 	connection_established = false;
 }
 
@@ -33,7 +33,9 @@ TCPManager::~TCPManager()
 int TCPManager::custom_accept(int sockfd, struct sockaddr *addr, socklen_t addrlen, int flags)
 {
 	char buffer[MAX_PACKET_LENGTH];
-	ssize_t count = recvfrom(sockfd, buffer, MAX_PACKET_LENGTH, 0, 0, 0);
+	sockaddr_in client_addr;
+	socklen_t client_addrlen = sizeof(client_addr);
+	ssize_t count = recvfrom(sockfd, buffer, MAX_PACKET_LENGTH, 0, (struct sockaddr *) &client_addr, &client_addrlen);
 	if (count == -1) { 
 		std::cerr << "recvfrom() ran into error" << std::endl;
 		return -1;
@@ -44,23 +46,17 @@ int TCPManager::custom_accept(int sockfd, struct sockaddr *addr, socklen_t addrl
 	}
 	else {
 
-		if (count != 8) //too many bytes sent.
+		if (count != PACKET_HEADER_LENGTH) //too many bytes sent.
 		{
 			std::cerr << "Unexpected bits when establishing connection" << std::endl;
 			return -1;
 		}
-		if (!(SYN_FLAG & buffer[8])) 
-		{
-			std::cerr << "Must have SYN flag" << std::endl;
-			return -1;
-		}
-
-		//Store the seq-num
-		// last_seq_num = 0xFFFF & (buffer >> 48);
+		
+		//Store the Syn-num
 		
 		//Send SYN-ACK
 		packet_headers synack_packet = {next_seq_num(0), next_ack_num(1), INIT_RECV_WINDOW, SYN_FLAG | ACK_FLAG};
-		if (! sendto(sockfd, &synack_packet, PACKET_HEADER_LENGTH, 0, addr, addrlen) ) {
+		if (! sendto(sockfd, &synack_packet, PACKET_HEADER_LENGTH, 0, (struct sockaddr *) &client_addr, &client_addrlen) ) {
 			std::cerr << "Error: could not send synack_packet" << std::endl;
 			return -1;
 		}
@@ -112,6 +108,12 @@ int TCPManager::custom_recv(int sockfd, void* buf, size_t len, int flags)
 
 int TCPManager::custom_send(int sockfd, void* buf, size_t len, int flags)
 {
+	/*
+	if (! sendto(sockfd, buf, len, 0, (struct sockaddr *) &addr, &addrlen) ) {
+		std::cerr << "Error: could not send synack_packet" << std::endl;
+		return -1;
+	}
+	*/
 	return -1;
 }
 
