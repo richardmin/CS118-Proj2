@@ -21,6 +21,10 @@ public:
 private:
 	uint16_t last_seq_num;
 	uint16_t last_ack_num;
+
+	uint16_t next_seq_num;
+	uint16_t next_ack_num;
+	
 	struct timespec last_received_msg_time;
 
 	bool connection_established;
