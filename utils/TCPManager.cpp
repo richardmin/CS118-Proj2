@@ -53,10 +53,10 @@ int TCPManager::custom_accept(int sockfd)
 	} */
 	else {
 		//Decompose the header data
-		uint16_t seqnum = (buf[0] * 256 | buf[1]);
-        uint16_t acknum = (buf[2] * 256 | buf[3]); //this should be 65535
-        uint16_t winnum = (buf[4] * 256 | buf[5]);
-        uint16_t flags = (buf[6] * 256 | buf[7]);
+		uint16_t seqnum = (buf[0] << 8 | buf[1]);
+        uint16_t acknum = (buf[2] << 8 | buf[3]); //this should be 65535
+        uint16_t winnum = (buf[4] << 8 | buf[5]);
+        uint16_t flags = (buf[6] << 8 | buf[7]);
 
         last_seq_num = (int) seqnum;
         last_ack_num = (int) acknum;
