@@ -53,15 +53,15 @@ int TCPManager::custom_accept(int sockfd)
 	} */
 	else {
 		//Decompose the header data
-		uint16_t seqnum = (buf[0] * 256 | buf[1]);
-        uint16_t acknum = (buf[2] * 256 | buf[3]); //this should be 65535
-        uint16_t winnum = (buf[4] * 256 | buf[5]);
-        uint16_t flags = (buf[6] * 256 | buf[7]);
+		uint16_t seqnum = (buf[0] << 8 | buf[1]);
+        uint16_t acknum = (buf[2] << 8 | buf[3]); //this should be 65535
+        uint16_t winnum = (buf[4] << 8 | buf[5]);
+        uint16_t flags  = (buf[6] << 8 | buf[7]);
 
         last_seq_num = (int) seqnum;
         last_ack_num = (int) acknum;
         
-        if (!(flags & SYN_FLAG ^ flags)) //check that ONLY the syn flag is set.
+        if (!(flags ^ SYN_FLAG)) //check that ONLY the syn flag is set.
         {
         	std::cerr << "Received non-syn packet!" << std::endl;
         	return -1;
@@ -126,7 +126,7 @@ int TCPManager::custom_connect(int sockfd, const struct sockaddr * addr, socklen
 
 		} while(result.tv_nsec > 50000000); //5 milliseconds = 50000000 nanoseconds
 	}
-	return -1;
+	return 0;
 
 }
 
@@ -204,13 +204,14 @@ uint16_t TCPManager::next_ack_num(int datalen)
 }
 */
 
+// Next ack num = last sequence number received + amount of data received
 uint16_t TCPManager::next_ack_num(int datalen)
 {
 	if(!connection_established)
 		return -1;
 
 	//Next ack number will be the recieved_seqNum + datalen
-	int next_ack_num = last_seq_num + datalen;
+	next_ack_num = last_seq_num + datalen;
 	if (next_ack_num >= MAX_SEQUENCE_NUMBER)
 		next_ack_num -= MAX_SEQUENCE_NUMBER;
 
