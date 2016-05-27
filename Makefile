@@ -13,9 +13,11 @@ utils/%.o: %.cpp
 	$(CXX) $(CXXFLAGS) -c -o $@ $<
 
 server: $(UTIL_CLASSES)
+	mkdir -p targets 
 	$(CXX) -o targets/$@ $^ $(CXXFLAGS) src/$@.cpp $(LIBRARIES)
 
 client: $(UTIL_CLASSES)
+	mkdir -p targets
 	$(CXX) -o targets/$@ $^ $(CXXFLAGS) src/$@.cpp $(LIBRARIES)
 
 

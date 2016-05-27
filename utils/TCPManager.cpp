@@ -35,10 +35,10 @@ TCPManager::~TCPManager()
  */
 int TCPManager::custom_accept(int sockfd)
 {
-	char buffer[MAX_PACKET_LENGTH];
+	char buf[MAX_PACKET_LENGTH];
 	sockaddr_in client_addr;
 	socklen_t client_addrlen = sizeof(client_addr);
-	ssize_t count = recvfrom(sockfd, buffer, MAX_PACKET_LENGTH, 0, (struct sockaddr *) &client_addr, &client_addrlen);
+	ssize_t count = recvfrom(sockfd, buf, MAX_PACKET_LENGTH, 0, (struct sockaddr *) &client_addr, &client_addrlen);
 	if (count == -1) { 
 		std::cerr << "recvfrom() ran into error" << std::endl;
 		return -1;
@@ -94,6 +94,10 @@ int TCPManager::custom_connect(int sockfd, const struct sockaddr * addr, socklen
 		return -1;
 	}
 
+	char buf[MAX_PACKET_LENGTH];
+	sockaddr_in client_addr;
+	socklen_t client_addrlen = sizeof(client_addr);
+	
 	clock_gettime(CLOCK_MONOTONIC, &last_received_msg_time);
 	struct timespec result;
 	bool message_received = false;
@@ -105,7 +109,7 @@ int TCPManager::custom_connect(int sockfd, const struct sockaddr * addr, socklen
 			clock_gettime(CLOCK_MONOTONIC, &tmp);
 			//wait for a response quietly.
 			timespec_subtract(&result, &last_received_msg_time, &tmp);
-			ssize_t count = recvfrom(sockfd, buffer, MAX_PACKET_LENGTH, 0, (struct sockaddr *) &client_addr, &client_addrlen);
+			ssize_t count = recvfrom(sockfd, buf, MAX_PACKET_LENGTH, 0, (struct sockaddr *) &client_addr, &client_addrlen);
 			if (count == -1) { 
 				std::cerr << "recvfrom() ran into error" << std::endl;
 				continue;
