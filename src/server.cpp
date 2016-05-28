@@ -59,10 +59,11 @@ int main(int argc, char* argv[])
     exit(5);
   }
 
+  
   int BUFSIZE = 2048;
-  struct sockaddr_in remaddr;     /* remote address */
+  struct sockaddr_in remaddr;     // remote address 
   socklen_t addrlen = sizeof(remaddr);  
-  unsigned char buf[BUFSIZE];     /* receive buffer */
+  unsigned char buf[BUFSIZE];    // receive buffer 
   for (;;) {
             printf("waiting on port %d\n", 3000);
             int recvlen = recvfrom(sockfd, buf, BUFSIZE, 0, (struct sockaddr *)&remaddr, &addrlen);
@@ -84,95 +85,97 @@ int main(int argc, char* argv[])
                     printf("received message: \"%d %d %d %d\"\n", seqnum, acknum, winnum, flags);
             }
     }
-  // int portnum = -1;
-  // std::string filename;
 
-  // //-------------- Parse Command Line Arguments ----------------//
-  // if(argc < 3)
-  // {
-  //   std::cerr << "Usage: server [Port-Number] [File-Name]" << std::endl;
-  //   exit(1);
-  // }
+/*
+   int portnum = -1;
+   std::string filename;
 
-  // std::stringstream convert(argv[1]);
-  // if(!(convert >> portnum))
-  // {
-  //   std::cerr << "[Port-Number] must be a valid integer" << std::endl;
-  //   exit(1);
-  // }
+   //-------------- Parse Command Line Arguments ----------------//
+   if(argc < 3)
+   {
+     std::cerr << "Usage: server [Port-Number] [File-Name]" << std::endl;
+     exit(1);
+   }
 
-  // //------------- Open the file ----------------//
-  // FILE* fp = fopen(argv[2], "r"); //read-only: we're not going to be modifying the file at all.
-  // if (fp == NULL) 
-  // {
-  //   perror("open");
-  //   std::cerr << "File " << argv[2] << " not found" << std::endl;
-  //   exit(2);
-  // }
-  // else 
-  // {
-  //   int fd = fileno(fp);
-  //   struct stat stats;
-  //   fstat(fd, &stats);
-  //   if (!S_ISREG(stats.st_mode)) //Make sure we can deliver file contents (Regular File)
-  //   {
-  //     std::cerr << "File " << argv[2] << " not a regular file" << std::endl;
-  //     exit(2);
-  //   }
-  // }
+   std::stringstream convert(argv[1]);
+   if(!(convert >> portnum))
+   {
+     std::cerr << "[Port-Number] must be a valid integer" << std::endl;
+     exit(1);
+   }
 
-  // //-------------- Set up socket connection ------------//
-  // signal(SIGPIPE, SIG_IGN); //Ignore poorly terminated connections from terminating our server
+   //------------- Open the file ----------------//
+   FILE* fp = fopen(argv[2], "r"); //read-only: we're not going to be modifying the file at all.
+   if (fp == NULL) 
+   {
+     perror("open");
+     std::cerr << "File " << argv[2] << " not found" << std::endl;
+     exit(2);
+   }
+   else 
+   {
+     int fd = fileno(fp);
+     struct stat stats;
+     fstat(fd, &stats);
+     if (!S_ISREG(stats.st_mode)) //Make sure we can deliver file contents (Regular File)
+     {
+       std::cerr << "File " << argv[2] << " not a regular file" << std::endl;
+       exit(2);
+     }
+   }
 
-  // // create a socket with UDP
-  // int sockfd = socket(AF_INET, SOCK_DGRAM, 0);
-  // if(sockfd == -1)
-  // {
-  //   perror("socket");
-  //   exit(3);
-  // }
+   //-------------- Set up socket connection ------------//
+   signal(SIGPIPE, SIG_IGN); //Ignore poorly terminated connections from terminating our server
 
-  // // allow others to reuse the address
-  // int yes = 1;
-  // if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int)) == -1) {
-  //   perror("setsockopt");
-  //   exit(4);
-  // }
+   // create a socket with UDP
+   int sockfd = socket(AF_INET, SOCK_DGRAM, 0);
+   if(sockfd == -1)
+   {
+     perror("socket");
+     exit(3);
+   }
 
-  // // bind address to socket
-  // struct sockaddr_in addr;
-  // addr.sin_family = AF_INET;
-  // addr.sin_port = htons(portnum); 
-  // addr.sin_addr.s_addr = inet_addr("10.0.0.1"); //use your own IP address. We assume the server is reserved to an IP address here.
-  // memset(addr.sin_zero, '\0', sizeof(addr.sin_zero));
+   // allow others to reuse the address
+   int yes = 1;
+   if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int)) == -1) {
+     perror("setsockopt");
+     exit(4);
+   }
 
-  // //bind the socket
-  // if (bind(sockfd, (struct sockaddr*)&addr, sizeof(addr)) == -1) {
-  //   perror("bind");
-  //   exit(5);
-  // }
+   // bind address to socket
+   struct sockaddr_in addr;
+   addr.sin_family = AF_INET;
+   addr.sin_port = htons(portnum); 
+   addr.sin_addr.s_addr = inet_addr("10.0.0.1"); //use your own IP address. We assume the server is reserved to an IP address here.
+   memset(addr.sin_zero, '\0', sizeof(addr.sin_zero));
 
-  // TCPManager t = new TCPManager();
+   //bind the socket
+   if (bind(sockfd, (struct sockaddr*)&addr, sizeof(addr)) == -1) {
+     perror("bind");
+     exit(5);
+   }
 
-  // //--------------- Establish TCP Handshake -----------//
-  // int r = custom_listen(sockfd, 1); //note that backlog is ignored in our implementation
-  //                                   //waits for an ACK request, sends a SYN-ACK in response.
-  // if(r == -1)
-  // {
-  //   //this should never happen
-  //   std::cerr << "Failed to establish handshake" << std::endl;
-  //   exit(4);
-  // }
+   TCPManager t = new TCPManager();
 
-  // char ipstr[INET_ADDRSTRLEN] = {'\0'};
-  // inet_ntop(addr.sin_family, &addr.sin_addr, ipstr, sizeof(ipstr));
+   //--------------- Establish TCP Handshake -----------//
+   int r = custom_listen(sockfd, 1); //note that backlog is ignored in our implementation
+                                     //waits for an ACK request, sends a SYN-ACK in response.
+   if(r == -1)
+   {
+     //this should never happen
+     std::cerr << "Failed to establish handshake" << std::endl;
+     exit(4);
+   }
+
+   char ipstr[INET_ADDRSTRLEN] = {'\0'};
+   inet_ntop(addr.sin_family, &addr.sin_addr, ipstr, sizeof(ipstr));
   
-  // //Output the automatically binded IP address.
-  // std::cerr << ipstr << std::endl;
-  // std::cerr << ntohs(addr.sin_port) << std::endl;
+   //Output the automatically binded IP address.
+   std::cerr << ipstr << std::endl;
+   std::cerr << ntohs(addr.sin_port) << std::endl;
 
 
 
-  // close(sockfd);
-
+   close(sockfd);
+*/
 }

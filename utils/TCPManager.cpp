@@ -89,13 +89,13 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
  * This function manages the entire client side of the code: sending out a SYN, waiting for a SYN-ACK and replying with the ACK and
  * receiving data. Also handles the closing of the connection: it blocks. 
  */
-int TCPManager::custom_send(int sockfd, FILE* fp, const struct *sockaddr *remote_addr, socklen_t remote_addrlen)
+int TCPManager::custom_send(int sockfd, FILE* fp, const struct sockaddr *remote_addr, socklen_t remote_addrlen)
 {
 
 	packet_headers syn_packet = {next_seq_num(0), (uint16_t)NOT_IN_USE, INIT_RECV_WINDOW, SYN_FLAG};
 	
 	//send the initial syn packet
-	if ( !sendto(sockfd, &syn_packet, PACKET_HEADER_LENGTH, 0, addr, addrlen) ) {
+	if ( !sendto(sockfd, &syn_packet, PACKET_HEADER_LENGTH, 0, remote_addr, remote_addrlen) ) {
 		std::cerr << "Error: Could not send syn_packet" << std::endl;
 		return -1;
 	}
@@ -137,7 +137,7 @@ int TCPManager::custom_send(int sockfd, FILE* fp, const struct *sockaddr *remote
 				}
 				else if(!(flags & SYN_FLAG))
 				{
-					if ( !sendto(sockfd, &syn_packet, PACKET_HEADER_LENGTH, 0, addr, addrlen) )  {
+					if ( !sendto(sockfd, &syn_packet, PACKET_HEADER_LENGTH, 0, remote_addr, remote_addrlen) )  {
 						std::cerr << "Error: Could not send syn_packet" << std::endl;
 						return -1;
 					}
@@ -150,7 +150,7 @@ int TCPManager::custom_send(int sockfd, FILE* fp, const struct *sockaddr *remote
 
 		if(!message_received)
 		{
-			if ( !sendto(sockfd, &syn_packet, PACKET_HEADER_LENGTH, 0, addr, addrlen) )  {
+			if ( !sendto(sockfd, &syn_packet, PACKET_HEADER_LENGTH, 0, remote_addr, remote_addrlen) )  {
 				std::cerr << "Error: Could not send syn_packet" << std::endl;
 				return -1;
 			}
@@ -158,12 +158,14 @@ int TCPManager::custom_send(int sockfd, FILE* fp, const struct *sockaddr *remote
 		}
 	}
 
-	packet_headers syn_packet = {next_seq_num(0), next_ack_num(1), INIT_RECV_WINDOW, ACK_FLAG};
-	if ( !sendto(sockfd, &syn_packet, PACKET_HEADER_LENGTH, 0, addr, addrlen) ) {
+	//Send ACK-Packet
+	packet_headers ack_packet = {next_seq_num(0), next_ack_num(1), INIT_RECV_WINDOW, ACK_FLAG};
+	if ( !sendto(sockfd, &ack_packet, PACKET_HEADER_LENGTH, 0, remote_addr, remote_addrlen) ) {
 		std::cerr << "Error: Could not send ack_packet" << std::endl;
 		return -1;
 	}
 
+	
 	return 0;
 
 }
@@ -237,7 +239,7 @@ uint16_t TCPManager::next_ack_num(int datalen)
 		return -1;
 
 	//Next ack number will be the recieved_seqNum + datalen
-	next_ack_num = last_seq_num + datalen;
+	uint16_t next_ack_num = last_seq_num + datalen;
 	if (next_ack_num >= MAX_SEQUENCE_NUMBER)
 		next_ack_num -= MAX_SEQUENCE_NUMBER;
 
@@ -284,8 +286,9 @@ int TCPManager::timespec_subtract (struct timespec *result, struct timespec *y, 
  */
 void populateHeaders(void* buf, packet_headers &headers)
 {
-	headers.h_seq    = (buf[0] << 8 | buf[1]);
-    headers.h_ack    = (buf[2] << 8 | buf[3]); 
-    headers.h_window = (buf[4] << 8 | buf[5]);
-    headers.flags    = (buf[6] << 8 | buf[7]); 
+	char* buff = (char *) buf;
+	headers.h_seq    = (buff[0] << 8 | buff[1]);
+    headers.h_ack    = (buff[2] << 8 | buff[3]); 
+    headers.h_window = (buff[4] << 8 | buff[5]);
+    headers.flags    = (buff[6] << 8 | buff[7]); 
 }
