@@ -44,43 +44,59 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
 	sockaddr_in client_addr;
 	socklen_t client_addrlen = sizeof(client_addr);
 
+    sockaddr_in tmp_addr;
+    socklen_t client_addrlen = sizeof(tmp_addr);
+    bool syn_received, ack_received = false;
 
-	ssize_t count = recvfrom(sockfd, buf, MAX_PACKET_LENGTH, 0, (struct sockaddr *) &client_addr, &client_addrlen);
 
-	if (count == -1) { 
-		std::cerr << "recvfrom() ran into error" << std::endl;
-		return -1;
-	}
-	else if (count > MAX_PACKET_LENGTH) {
-		std::cerr << "Datagram too large for buffer" << std::endl;
-		return -1;
-	}
-	else {
-		//Decompose the header data
-        struct packet_headers received_packet_headers;
-        populateHeaders(buf, received_packet_headers);
-        
-		uint16_t seqnum = (buf[0] << 8 | buf[1]);
-        uint16_t acknum = (buf[2] << 8 | buf[3]); //this should be 65535
-        uint16_t winnum = (buf[4] << 8 | buf[5]);
-        uint16_t flags  = (buf[6] << 8 | buf[7]); //this should be 0x02
 
-        last_seq_num = (int) seqnum;
-        last_ack_num = (int) acknum;
-        
-        if (!(flags ^ SYN_FLAG)) //check that ONLY the syn flag is set.
-        {
-        	std::cerr << "Received non-syn packet!" << std::endl;
-        	return -1;
+    //Wait for someone to establish a connection through SYN. Ignore all other packets. 
+    while(!syn_received)
+	{
+        //wait for a packet
+        ssize_t count = recvfrom(sockfd, buf, MAX_PACKET_LENGTH, 0, (struct sockaddr *) &client_addr, &client_addrlen);
+    
+        if (count == -1) { 
+            std::cerr << "recvfrom() ran into error" << std::endl;
+            continue;
         }
-		//Send SYN-ACK
-		packet_headers synack_packet = {next_seq_num(0), next_ack_num(1), winnum, SYN_FLAG | ACK_FLAG};
-		if (! sendto(sockfd, &synack_packet, PACKET_HEADER_LENGTH, 0, (struct sockaddr *) &client_addr, client_addrlen) ) {
-			std::cerr << "Error: could not send synack_packet" << std::endl;
-			return -1;
-		}
-	}
-	
+        else if (count > MAX_PACKET_LENGTH) {
+            std::cerr << "Datagram too large for buffer" << std::endl;
+            continue;
+        }
+        else {
+            //Decompose the header data
+            struct packet_headers received_packet_headers;
+            populateHeaders(buf, received_packet_headers);
+            
+            last_seq_num = packet_headers.h_seq;
+            last_ack_num = packet_headers.h_ack;
+            
+            if (!(flags ^ SYN_FLAG)) //check that ONLY the syn flag is set.
+            {
+                std::cerr << "Received non-syn packet!" << std::endl;
+                continue;
+            }
+            syn_received = true;
+        }
+    }
+
+    clock_gettime(CLOCK_MONOTONIC, &last_received_msg_time);
+
+    //Send SYN-ACK, set timeout.
+    packet_headers synack_packet = {next_seq_num(0), next_ack_num(1), winnum, SYN_FLAG | ACK_FLAG};
+    if (! sendto(sockfd, &synack_packet, PACKET_HEADER_LENGTH, 0, (struct sockaddr *) &tmp_addr, tmp_addrlen) ) {
+        std::cerr << "Error: could not send synack_packet" << std::endl;
+        return -1;
+    }
+
+    // Timeout for ACK
+    while(!ack_received)
+    {
+        do
+        while
+    }
+
 	return 0;
 }
 
@@ -120,7 +136,7 @@ int TCPManager::custom_send(int sockfd, FILE* fp, const struct sockaddr *remote_
 			clock_gettime(CLOCK_MONOTONIC, &tmp);
 			//wait for a response quietly.
 			timespec_subtract(&result, &last_received_msg_time, &tmp);
-			ssize_t count = recvfrom(sockfd, buf, MAX_PACKET_LENGTH, 0, (struct sockaddr *) &client_addr, &client_addrlen);
+			ssize_t count = recvfrom(sockfd, buf, MAX_PACKET_LENGTH, MSG_DONTWAIT, (struct sockaddr *) &client_addr, &client_addrlen); //non-blocking
 			if (count == -1) { 
 				std::cerr << "recvfrom() ran into error" << std::endl;
 				continue;
@@ -165,7 +181,7 @@ int TCPManager::custom_send(int sockfd, FILE* fp, const struct sockaddr *remote_
 
 	//Send ACK-Packet
 	packet_headers ack_packet = {next_seq_num(0), next_ack_num(1), INIT_RECV_WINDOW, ACK_FLAG};
-	if ( !sendto(sockfd, &ack_packet, PACKET_HEADER_LENGTH, 0, remote_addr, remote_addrlen) ) {
+	if ( !sendto(sockfd, &ack_packet, PACKET_HEADER_LENGTH, MSG_DONTWAIT, remote_addr, remote_addrlen) ) {
 		std::cerr << "Error: Could not send ack_packet" << std::endl;
 		return -1;
 	}
