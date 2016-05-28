@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <stdlib.h>
 #include <time.h>
+#include <signal.h>
 
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -70,21 +71,21 @@ int main(int argc, char* argv[])
 
   std::cout << "Sequence Number: " << ntohs(syn_packet.h_seq) << " Acknoweldgement Number: " << ntohs(syn_packet.h_ack)
    << " Window Size: " << ntohs(syn_packet.h_window) << " Flags: " << ntohs(syn_packet.flags) << std::endl;
-  // int portnum = -1;
-  // char* IP;
-  // //-------------- Parse Command Line Arguments ----------------//
-  // if(argc < 3)
-  // {
-  //   std::cerr << "Usage: client [Server Host or IP] [Port-Number]" << std::endl;
-  //   exit(1);
-  // }
+   // int portnum = -1;
+   // char* IP;
+   // //-------------- Parse Command Line Arguments ----------------//
+   // if(argc < 3)
+   // {
+   //   std::cerr << "Usage: client [Server Host or IP] [Port-Number]" << std::endl;
+   //   exit(1);
+   // }
 	
-  // std::stringstream convert(argv[2]);
-  // if(!(convert >> portnum))
-  // {
-  //   std::cerr << "[Port-Number] must be a valid integer" << std::endl;
-  //   exit(1);
-  // }
+   // std::stringstream convert(argv[2]);
+   // if(!(convert >> portnum))
+   // {
+   //   std::cerr << "[Port-Number] must be a valid integer" << std::endl;
+   //   exit(1);
+   // }
   
   // IP = (char*)malloc((strlen(argv[1]) + 1) * sizeof(char));
   // if(IP == NULL)
@@ -141,5 +142,5 @@ int main(int argc, char* argv[])
   // TCPManager t = new TCPManager();
 
 
-  // close(sockfd);
+  close(sockfd);
 }

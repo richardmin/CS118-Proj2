@@ -59,10 +59,11 @@ int main(int argc, char* argv[])
     exit(5);
   }
 
+  
   int BUFSIZE = 2048;
-  struct sockaddr_in remaddr;     /* remote address */
+  struct sockaddr_in remaddr;     // remote address 
   socklen_t addrlen = sizeof(remaddr);  
-  unsigned char buf[BUFSIZE];     /* receive buffer */
+  unsigned char buf[BUFSIZE];    // receive buffer 
   for (;;) {
             printf("waiting on port %d\n", 3000);
             int recvlen = recvfrom(sockfd, buf, BUFSIZE, 0, (struct sockaddr *)&remaddr, &addrlen);
@@ -84,6 +85,7 @@ int main(int argc, char* argv[])
                     printf("received message: \"%d %d %d %d\"\n", seqnum, acknum, winnum, flags);
             }
     }
+
   // int portnum = -1;
   // std::string filename;
 
@@ -154,8 +156,6 @@ int main(int argc, char* argv[])
 
   // TCPManager t = new TCPManager();
   
-
-
-  // close(sockfd);
+  close(sockfd);
 
 }
