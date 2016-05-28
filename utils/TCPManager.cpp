@@ -43,6 +43,8 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
 
 	sockaddr_in client_addr;
 	socklen_t client_addrlen = sizeof(client_addr);
+
+
 	ssize_t count = recvfrom(sockfd, buf, MAX_PACKET_LENGTH, 0, (struct sockaddr *) &client_addr, &client_addrlen);
 
 	if (count == -1) { 
@@ -55,6 +57,9 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
 	}
 	else {
 		//Decompose the header data
+        struct packet_headers received_packet_headers;
+        populateHeaders(buf, received_packet_headers);
+        
 		uint16_t seqnum = (buf[0] << 8 | buf[1]);
         uint16_t acknum = (buf[2] << 8 | buf[3]); //this should be 65535
         uint16_t winnum = (buf[4] << 8 | buf[5]);

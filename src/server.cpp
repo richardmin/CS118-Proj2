@@ -143,7 +143,7 @@ int main(int argc, char* argv[])
   // struct sockaddr_in addr;
   // addr.sin_family = AF_INET;
   // addr.sin_port = htons(portnum); 
-  // addr.sin_addr.s_addr = inet_addr("10.0.0.1"); //use your own IP address. We assume the server is reserved to an IP address here.
+  // addr.sin_addr.s_addr = htonl(IPADDR_ANY); //use your own IP address. We assume the server is reserved to an IP address here.
   // memset(addr.sin_zero, '\0', sizeof(addr.sin_zero));
 
   // //bind the socket
@@ -153,24 +153,7 @@ int main(int argc, char* argv[])
   // }
 
   // TCPManager t = new TCPManager();
-
-  // //--------------- Establish TCP Handshake -----------//
-  // int r = custom_listen(sockfd, 1); //note that backlog is ignored in our implementation
-  //                                   //waits for an ACK request, sends a SYN-ACK in response.
-  // if(r == -1)
-  // {
-  //   //this should never happen
-  //   std::cerr << "Failed to establish handshake" << std::endl;
-  //   exit(4);
-  // }
-
-  // char ipstr[INET_ADDRSTRLEN] = {'\0'};
-  // inet_ntop(addr.sin_family, &addr.sin_addr, ipstr, sizeof(ipstr));
   
-  // //Output the automatically binded IP address.
-  // std::cerr << ipstr << std::endl;
-  // std::cerr << ntohs(addr.sin_port) << std::endl;
-
 
 
   // close(sockfd);

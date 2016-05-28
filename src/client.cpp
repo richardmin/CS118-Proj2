@@ -121,7 +121,7 @@ int main(int argc, char* argv[])
   // struct sockaddr_in addr;
   // addr.sin_family = AF_INET;
   // addr.sin_port = htons(portnum); 
-  // addr.sin_addr.s_addr = inet_addr(IP); 
+  // addr.sin_addr.s_addr = htonl(INADDR_ANY); 
   // memset(addr.sin_zero, '\0', sizeof(addr.sin_zero));
 
   // //bind the socket
@@ -129,6 +129,12 @@ int main(int argc, char* argv[])
   //   perror("bind");
   //   exit(4);
   // }
+
+  // struct sockaddr_in remote_addr;
+  // remote_addr.sin_family = AF_INET;
+  // remote_addr.sin_port = htons(portnum); 
+  // remote_addr.sin_addr.s_addr = inet_ntop(IP); 
+  // remote_memset(addr.sin_zero, '\0', sizeof(addr.sin_zero));
 
   // free(IP);
 
