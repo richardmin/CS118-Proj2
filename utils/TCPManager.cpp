@@ -27,18 +27,24 @@ TCPManager::~TCPManager()
 }
 
 /* 
- * Function: custom_accept(int sockfd, struct sockaddr *addr, socklen_t* addrlen, int flags)
- * Usage: custom_accept(sockfd, &addr, sizeof(addr), 0)
+ * Function: custom_recv(int sockfd, FILE* fp)
+ * Usage: custom_recv(sockfd,fp)
  * ------------------
+ * sockfd is the socket to listen upon, fp is the FILE* that the server should be serve
  * This function blocks, listening for incoming SYNs and responds with a SYN-ACK.
- * After responding with a SYN-ACK, it remembers (connects) to the client.
+ *
+ * This function handles the entire server side of the code, taking a socket to listen upon and responding over the file pointer.
+ * It listens for Syns, and replies with Syn-acks to the sender adddress, establishing a TCP connection, and upon the receiving of
+ * and ack it starts to send the window data back with the congestion control targetted appropriately. 
  */
-int TCPManager::custom_accept(int sockfd)
+int TCPManager::custom_recv(int sockfd, FILE* fp)
 {
 	char buf[MAX_PACKET_LENGTH];
+
 	sockaddr_in client_addr;
 	socklen_t client_addrlen = sizeof(client_addr);
 	ssize_t count = recvfrom(sockfd, buf, MAX_PACKET_LENGTH, 0, (struct sockaddr *) &client_addr, &client_addrlen);
+
 	if (count == -1) { 
 		std::cerr << "recvfrom() ran into error" << std::endl;
 		return -1;
@@ -74,13 +80,16 @@ int TCPManager::custom_accept(int sockfd)
 }
 
 /**
- * Function: custom_connect(int sockfd, const struct sockaddr * addr, socklen_t addrlen)
- * Usage: custom_connect(sockfd, &addr, sizeof(addr))
+ * Function: custom_send(int sockfd, FILE* fp, const struct *sockaddr *remote_addr, socklen_t remote_addrlen
+ * Usage: custom_send(sockfd, fp, &remote_addr, remote_addrlen)
  * -----------------------------
- * This function sends a UDP SYN message, and waits for the SYN-ACK to be received. 
- * It then sends a ACK. Sockfd is the socket you're sending over, and the sockaddr is the socket address you are sending to. 
+ * sockfd is the socket to send the request out upon/receive the request on; fp is the file to save the results to, remote_addr 
+ * is the remote address for the socket, remote_addrlen is the length of that sturct
+ * 
+ * This function manages the entire client side of the code: sending out a SYN, waiting for a SYN-ACK and replying with the ACK and
+ * receiving data. Also handles the closing of the connection: it blocks. 
  */
-int TCPManager::custom_connect(int sockfd, const struct sockaddr * addr, socklen_t addrlen)
+int TCPManager::custom_send(int sockfd, FILE* fp, const struct *sockaddr *remote_addr, socklen_t remote_addrlen)
 {
 
 	packet_headers syn_packet = {next_seq_num(0), (uint16_t)NOT_IN_USE, INIT_RECV_WINDOW, SYN_FLAG};
@@ -158,18 +167,6 @@ int TCPManager::custom_connect(int sockfd, const struct sockaddr * addr, socklen
 	return 0;
 
 }
-
-int TCPManager::custom_recv(int sockfd, void* buf, size_t len, int flags)
-{
-	return -1;
-}
-
-int TCPManager::custom_send(int sockfd, void* buf, size_t len, int flags)
-{
-	
-	return -1;
-}
-
 
 /**
  * Function: next_seq_num()
@@ -273,4 +270,22 @@ int TCPManager::timespec_subtract (struct timespec *result, struct timespec *y, 
 
   /* Return 1 if result is negative. */
   return x->tv_sec < y->tv_sec;
+}
+
+
+/* 
+ * Function: populateHeaders(void* buf, packet_headers &headers)
+ * Usage: populateHeaders(buf, headers)
+ * --------------------------------
+ * This function receives a buffer (that should be acquired from recvfrom, with minimum 8 bytes), taking the first 8 bytes 
+ * and casting them to the struct. This will parse the headers and store them into the struct that's passed in.
+ * 
+ * WARNING: This does not safety checking: void*buf MUST be long enough as well and valid as well as headers must exist.
+ */
+void populateHeaders(void* buf, packet_headers &headers)
+{
+	headers.h_seq    = (buf[0] << 8 | buf[1]);
+    headers.h_ack    = (buf[2] << 8 | buf[3]); 
+    headers.h_window = (buf[4] << 8 | buf[5]);
+    headers.flags    = (buf[6] << 8 | buf[7]); 
 }

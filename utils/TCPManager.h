@@ -5,16 +5,15 @@
 #include <sys/socket.h>
 #include <sys/time.h>
 #include <stdint.h>
+#include <stdio.h>
 
 #define BILLION 1000000000L
 
 class TCPManager
 {
 public:
-	int custom_accept(int sockfd);
-	int custom_connect(int sockfd, const struct sockaddr *addr, socklen_t addrlen);
-	int custom_recv(int sockfd, void* buf, size_t len, int flags);
-	int custom_send(int sockfd, void* buf, size_t len, int flags);
+	int custom_recv(int sockfd, FILE* fp);
+	int custom_send(int sockfd, FILE* fp, const struct *sockaddr *remote_addr, socklen_t remote_addrlen);
 
 	TCPManager();
 	~TCPManager();
@@ -24,7 +23,7 @@ private:
 
 	uint16_t next_seq_num;
 	uint16_t next_ack_num;
-	
+
 	struct timespec last_received_msg_time;
 
 	bool connection_established;
@@ -35,7 +34,7 @@ private:
 	int wait_for_packet();
 
 	int timespec_subtract (struct timespec *result, struct timespec *y, struct timespec *x);
-
+	void populateHeaders(void* buf, packet_headers &headers);
 
 	// int update_
 };
