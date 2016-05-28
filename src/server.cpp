@@ -75,10 +75,10 @@ int main(int argc, char* argv[])
 
 
             //Apparently, recvfrom automatically converts network to byte order. 
-            int seqnum = (buf[0] * 256 | buf[1]);
-            int acknum = (buf[2] * 256 | buf[3]);
-            int winnum = (buf[4] * 256 | buf[5]);
-            int flags = (buf[6] * 256 | buf[7]);
+            int seqnum = (buf[0] << 8 | buf[1]);
+            int acknum = (buf[2] << 8 | buf[3]);
+            int winnum = (buf[4] << 8 | buf[5]);
+            int flags = (buf[6] << 8 | buf[7]);
             if (recvlen > 0) { 
                     buf[recvlen] = 0;
                     printf("received message: \"%d %d %d %d\"\n", seqnum, acknum, winnum, flags);
