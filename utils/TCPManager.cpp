@@ -46,17 +46,13 @@ int TCPManager::custom_accept(int sockfd)
 	else if (count > MAX_PACKET_LENGTH) {
 		std::cerr << "Datagram too large for buffer" << std::endl;
 		return -1;
-	} /*
-	else if (count != PACKET_HEADER_LENGTH) {
-		std::cerr << "Unexpected bits when establishing connection" << std::endl;
-		return -1;
-	} */
+	}
 	else {
 		//Decompose the header data
 		uint16_t seqnum = (buf[0] << 8 | buf[1]);
         uint16_t acknum = (buf[2] << 8 | buf[3]); //this should be 65535
         uint16_t winnum = (buf[4] << 8 | buf[5]);
-        uint16_t flags  = (buf[6] << 8 | buf[7]);
+        uint16_t flags  = (buf[6] << 8 | buf[7]); //this should be 0x02
 
         last_seq_num = (int) seqnum;
         last_ack_num = (int) acknum;
@@ -88,6 +84,7 @@ int TCPManager::custom_connect(int sockfd, const struct sockaddr * addr, socklen
 {
 
 	packet_headers syn_packet = {next_seq_num(0), (uint16_t)NOT_IN_USE, INIT_RECV_WINDOW, SYN_FLAG};
+	
 	//send the initial syn packet
 	if ( !sendto(sockfd, &syn_packet, PACKET_HEADER_LENGTH, 0, addr, addrlen) ) {
 		std::cerr << "Error: Could not send syn_packet" << std::endl;
@@ -120,12 +117,44 @@ int TCPManager::custom_connect(int sockfd, const struct sockaddr * addr, socklen
 			} 
 			else
 			{
-				
+				uint16_t seqnum = (buf[0] << 8 | buf[1]);
+		        uint16_t acknum = (buf[2] << 8 | buf[3]); //this should be 65535
+		        uint16_t winnum = (buf[4] << 8 | buf[5]);
+		        uint16_t flags  = (buf[6] << 8 | buf[7]); //this should be 0x06
+				if (!(flags ^ (ACK_FLAG & SYN_FLAG))) 
+				{
+					message_received = true;
+					break;
+				}
+				else if(!(flags & SYN_FLAG))
+				{
+					if ( !sendto(sockfd, &syn_packet, PACKET_HEADER_LENGTH, 0, addr, addrlen) )  {
+						std::cerr << "Error: Could not send syn_packet" << std::endl;
+						return -1;
+					}
+					clock_gettime(CLOCK_MONOTONIC, &last_received_msg_time);
+				}
 			}
 			std::cout << result.tv_nsec << std::endl;
 
 		} while(result.tv_nsec > 50000000); //5 milliseconds = 50000000 nanoseconds
+
+		if(!message_received)
+		{
+			if ( !sendto(sockfd, &syn_packet, PACKET_HEADER_LENGTH, 0, addr, addrlen) )  {
+				std::cerr << "Error: Could not send syn_packet" << std::endl;
+				return -1;
+			}
+			clock_gettime(CLOCK_MONOTONIC, &last_received_msg_time);
+		}
 	}
+
+	packet_headers syn_packet = {next_seq_num(0), next_ack_num(1), INIT_RECV_WINDOW, ACK_FLAG};
+	if ( !sendto(sockfd, &syn_packet, PACKET_HEADER_LENGTH, 0, addr, addrlen) ) {
+		std::cerr << "Error: Could not send ack_packet" << std::endl;
+		return -1;
+	}
+
 	return 0;
 
 }

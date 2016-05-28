@@ -1,0 +1,23 @@
+Changed three Files:
+
+BasicOperators.scala
+	* generateIterator() hasNext()
+	* hasNext() implemented for iterator
+	* next implemented
+	* fetchNextPartition Implemented
+CS143Utils.scala
+	* Added a function getBytesFromRow(), analagous to getBytesFromList(), so I can measure a row size.
+	* Implemented getUDFFromExpressions, for part 3
+		• traverses UDF recursively, going over the sequence of expression's tail until it reaches the beginning
+	* CachingIteratorGenerator implemented hasNext by asking the row iterator if it has next
+	* CachingIteratorGenerator implemented next by asking the row iterator if it has next and applying UDF projection to get and place the key. 		It appends to the row properly if needed, generating the associated key
+	* 
+DiskHashedRelation.scala
+	* getIterator now returns an iterator for DiskHashedRelation
+	* closeALlPartitions closes all partitions
+	* insert spillstodisk if it's too full, and then writes to disk. 
+	* DiskPartition has a measureRowSize function to measure Row Size
+	* DiskPartition iterator functions defined, and fetches next chunk
+	* closeInput defined
+	* DiskHashedRelation initializer defined
+	* 
