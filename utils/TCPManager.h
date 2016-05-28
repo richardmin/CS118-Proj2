@@ -34,7 +34,7 @@ private:
 	int timespec_subtract (struct timespec *result, struct timespec *y, struct timespec *x);
 	void populateHeaders(void* buf, packet_headers &headers);
 
-	// int update_
+	bool compare_sockaddr(const struct sockaddr* sockaddr_1, const* struct* sockaddr_2);
 };
 
 

@@ -41,8 +41,11 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
 {
 	char buf[MAX_PACKET_LENGTH];
 
+    //The client we're connecting to: we remember this for the rest of the connection status
+    //If we receive packets from someone that isn't this address, we just drop them. 
 	sockaddr_in client_addr;
 	socklen_t client_addrlen = sizeof(client_addr);
+
 
     sockaddr_in tmp_addr;
     socklen_t client_addrlen = sizeof(tmp_addr);
@@ -77,24 +80,65 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
                 std::cerr << "Received non-syn packet!" << std::endl;
                 continue;
             }
+
             syn_received = true;
         }
     }
 
-    clock_gettime(CLOCK_MONOTONIC, &last_received_msg_time);
 
-    //Send SYN-ACK, set timeout.
+    //Send initial SYN-ACK, set timeout.
     packet_headers synack_packet = {next_seq_num(0), next_ack_num(1), winnum, SYN_FLAG | ACK_FLAG};
-    if (! sendto(sockfd, &synack_packet, PACKET_HEADER_LENGTH, 0, (struct sockaddr *) &tmp_addr, tmp_addrlen) ) {
-        std::cerr << "Error: could not send synack_packet" << std::endl;
-        return -1;
-    }
-
-    // Timeout for ACK
+    
+    // Wait for ACK, timeout to SYN-ACK
     while(!ack_received)
     {
+        if (! sendto(sockfd, &synack_packet, PACKET_HEADER_LENGTH, 0, (struct sockaddr *) &tmp_addr, tmp_addrlen) ) {
+            std::cerr << "Error: could not send synack_packet" << std::endl;
+            return -1;
+        }
+        clock_gettime(CLOCK_MONOTONIC, &last_received_msg_time);
+
         do
-        while
+        {
+            struct timespec tmp;
+            clock_gettime(CLOCK_MONOTONIC, &tmp);
+            //wait for a response quietly.
+            timespec_subtract(&result, &last_received_msg_time, &tmp);
+            ssize_t count = recvfrom(sockfd, buf, MAX_PACKET_LENGTH, MSG_DONTWAIT, (struct sockaddr *) &tmp_addr, &tmp_addrlen); //non-blocking
+            if (count == -1) { 
+                std::cerr << "recvfrom() ran into error" << std::endl;
+                continue;
+            }
+            else if (count > MAX_PACKET_LENGTH) {
+                std::cerr << "Datagram too large for buffer" << std::endl;
+                continue;
+            } 
+            else
+            {
+                struct packet_headers received_packet_headers;
+                populateHeaders(buf, received_packet_headers);
+
+                last_seq_num = packet_headers.h_seq;
+                last_ack_num = packet_headers.h_ack;
+
+                if (!(flags ^ (ACK_FLAG))) 
+                {
+                    ack_received = true;
+                    break;
+                }
+                else if(!(flags & SYN_FLAG))
+                {
+                    if ( !sendto(sockfd, &syn_packet, PACKET_HEADER_LENGTH, 0, remote_addr, remote_addrlen) )  {
+                        std::cerr << "Error: Could not send syn_packet" << std::endl;
+                        return -1;
+                    }
+                    clock_gettime(CLOCK_MONOTONIC, &last_received_msg_time);
+                }
+            }
+            std::cout << result.tv_nsec << std::endl;
+
+        } while(result.tv_nsec < 50000000); //5 milliseconds = 50000000 nanoseconds
+
     }
 
 	return 0;
@@ -114,22 +158,21 @@ int TCPManager::custom_send(int sockfd, FILE* fp, const struct sockaddr *remote_
 {
 
 	packet_headers syn_packet = {next_seq_num(0), (uint16_t)NOT_IN_USE, INIT_RECV_WINDOW, SYN_FLAG};
-	
-	//send the initial syn packet
-	if ( !sendto(sockfd, &syn_packet, PACKET_HEADER_LENGTH, 0, remote_addr, remote_addrlen) ) {
-		std::cerr << "Error: Could not send syn_packet" << std::endl;
-		return -1;
-	}
 
 	char buf[MAX_PACKET_LENGTH];
 	sockaddr_in client_addr;
 	socklen_t client_addrlen = sizeof(client_addr);
-	
-	clock_gettime(CLOCK_MONOTONIC, &last_received_msg_time);
+
 	struct timespec result;
 	bool message_received = false;
 	while(!message_received)
 	{
+        //send the inital syn packet
+        if ( !sendto(sockfd, &syn_packet, PACKET_HEADER_LENGTH, 0, remote_addr, remote_addrlen) )  {
+            std::cerr << "Error: Could not send syn_packet" << std::endl;
+            return -1;
+        }
+        clock_gettime(CLOCK_MONOTONIC, &last_received_msg_time);
 		do
 		{
 			struct timespec tmp;
@@ -147,10 +190,12 @@ int TCPManager::custom_send(int sockfd, FILE* fp, const struct sockaddr *remote_
 			} 
 			else
 			{
-				uint16_t seqnum = (buf[0] << 8 | buf[1]);
-		        uint16_t acknum = (buf[2] << 8 | buf[3]); //this should be 65535
-		        uint16_t winnum = (buf[4] << 8 | buf[5]);
-		        uint16_t flags  = (buf[6] << 8 | buf[7]); //this should be 0x06
+                struct packet_headers received_packet_headers;
+                populateHeaders(buf, received_packet_headers);
+
+                last_seq_num = packet_headers.h_seq;
+                last_ack_num = packet_headers.h_ack;
+
 				if (!(flags ^ (ACK_FLAG & SYN_FLAG))) 
 				{
 					message_received = true;
@@ -167,16 +212,7 @@ int TCPManager::custom_send(int sockfd, FILE* fp, const struct sockaddr *remote_
 			}
 			std::cout << result.tv_nsec << std::endl;
 
-		} while(result.tv_nsec > 50000000); //5 milliseconds = 50000000 nanoseconds
-
-		if(!message_received)
-		{
-			if ( !sendto(sockfd, &syn_packet, PACKET_HEADER_LENGTH, 0, remote_addr, remote_addrlen) )  {
-				std::cerr << "Error: Could not send syn_packet" << std::endl;
-				return -1;
-			}
-			clock_gettime(CLOCK_MONOTONIC, &last_received_msg_time);
-		}
+		} while(result.tv_nsec < 50000000); //5 milliseconds = 50000000 nanoseconds
 	}
 
 	//Send ACK-Packet
@@ -312,4 +348,14 @@ void populateHeaders(void* buf, packet_headers &headers)
     headers.h_ack    = (buff[2] << 8 | buff[3]); 
     headers.h_window = (buff[4] << 8 | buff[5]);
     headers.flags    = (buff[6] << 8 | buff[7]); 
+}
+
+/*
+ * Returns true if the passed in sockaddresses have the same port, address, and family.
+ */
+bool compare_sockaddr(const struct sockaddr* sockaddr_1, const* struct* sockaddr_2)
+{
+    return sockaddr_1->sin_port == sockaddr_2->sin_port  //same port number
+            && sockaddr_1->in_addr.s_addr == sockaddr_2->in_addr.s_addr //same source address
+            && sockaddr_1->sin_family == sockaddr_2->sin_family;
 }

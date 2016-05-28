@@ -2,6 +2,7 @@
 #define TCPConstants_h
 
 #include <stdint.h>
+#include <time.h>
 
 #define PACKET_HEADER_LENGTH 8
 #define MAX_PACKET_PAYLOAD_LENGTH 1024
@@ -24,6 +25,12 @@ struct packet_headers {
 	uint16_t h_ack;
 	uint16_t h_window;
 	uint16_t flags;
+};
+
+struct buffer_data {
+	struct timespec send_time; //the time the packet came from
+	uint16_t seq_num;
+	uint16_t ack_num
 };
 
 
