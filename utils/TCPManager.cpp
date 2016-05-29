@@ -19,6 +19,7 @@ TCPManager::TCPManager()
 	srand(time(NULL)); //note that we must do this for our TCP ack/sequence numbers to be random
 	last_seq_num = NOT_IN_USE;
 	last_ack_num = NOT_IN_USE;
+    last_cumulative_seq_num = NOT_IN_USE;
 	connection_established = false;
 }
 
@@ -72,10 +73,10 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
             struct packet_headers received_packet_headers;
             populateHeaders(buf, received_packet_headers);
             
-            last_seq_num = packet_headers.h_seq;
-            last_ack_num = packet_headers.h_ack;
+            last_seq_num = received_packet_headers.h_seq;
+            last_ack_num = received_packet_headers.h_ack;
             
-            if (!(flags ^ SYN_FLAG)) //check that ONLY the syn flag is set.
+            if (!(received_packet_headers.flags ^ SYN_FLAG)) //check that ONLY the syn flag is set.
             {
                 std::cerr << "Received non-syn packet!" << std::endl;
                 continue;
@@ -118,15 +119,15 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
                 struct packet_headers received_packet_headers;
                 populateHeaders(buf, received_packet_headers);
 
-                last_seq_num = packet_headers.h_seq;
-                last_ack_num = packet_headers.h_ack;
+                last_seq_num = received_packet_headers.h_seq;
+                last_ack_num = received_packet_headers.h_ack;
 
-                if (!(flags ^ (ACK_FLAG))) 
+                if (!(received_packet_headers.flags ^ (ACK_FLAG))) 
                 {
                     ack_received = true;
                     break;
                 }
-                else if(!(flags & SYN_FLAG))
+                else if(!(received_packet_headers.flags & SYN_FLAG)) //SYN-ACK lost, resend syn.
                 {
                     if ( !sendto(sockfd, &syn_packet, PACKET_HEADER_LENGTH, 0, remote_addr, remote_addrlen) )  {
                         std::cerr << "Error: Could not send syn_packet" << std::endl;
@@ -140,6 +141,8 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
         } while(result.tv_nsec < 50000000); //5 milliseconds = 50000000 nanoseconds
 
     }
+
+    //Connection established, can begin sending data.
 
 	return 0;
 }
@@ -193,15 +196,15 @@ int TCPManager::custom_send(int sockfd, FILE* fp, const struct sockaddr *remote_
                 struct packet_headers received_packet_headers;
                 populateHeaders(buf, received_packet_headers);
 
-                last_seq_num = packet_headers.h_seq;
-                last_ack_num = packet_headers.h_ack;
+                last_seq_num = received_packet_headers.h_seq;
+                last_ack_num = received_packet_headers.h_ack;
 
-				if (!(flags ^ (ACK_FLAG & SYN_FLAG))) 
+				if (!(receieved_packet_headers.flags ^ (ACK_FLAG & SYN_FLAG))) 
 				{
 					message_received = true;
 					break;
 				}
-				else if(!(flags & SYN_FLAG))
+				else if(!(received_packet_headers.flags & SYN_FLAG))
 				{
 					if ( !sendto(sockfd, &syn_packet, PACKET_HEADER_LENGTH, 0, remote_addr, remote_addrlen) )  {
 						std::cerr << "Error: Could not send syn_packet" << std::endl;
@@ -210,7 +213,7 @@ int TCPManager::custom_send(int sockfd, FILE* fp, const struct sockaddr *remote_
 					clock_gettime(CLOCK_MONOTONIC, &last_received_msg_time);
 				}
 			}
-			std::cout << result.tv_nsec << std::endl;
+			// std::cout << result.tv_nsec << std::endl;
 
 		} while(result.tv_nsec < 50000000); //5 milliseconds = 50000000 nanoseconds
 	}
@@ -255,14 +258,19 @@ uint16_t TCPManager::next_seq_num(int datalen)
 
 uint16_t TCPManager::next_seq_num(int datalen)
 {
-	//generate the first seq number
-	if(last_seq_num == -1)
-		last_seq_num = rand() % MAX_SEQUENCE_NUMBER;
+	//generate the first seq number, when no ack has yet been received. 
+	if(last_ack_num == -1)
+    {
+        last_cumulative_seq_num = rand() % MAX_SEQUENCE_NUMBER;
+		return last_cumulative_seq_num;
+    }
 
+    //sequence numbers are cumulative: once you've sent the data the sequence number will go up
 	uint16_t next_seq_num = last_ack_num;
-	last_ack_num += datalen;
-	if (last_ack_num >= MAX_SEQUENCE_NUMBER)
-			last_ack_num -= MAX_SEQUENCE_NUMBER;
+	next_ack_num += datalen;
+	if (next_ack_num >= MAX_SEQUENCE_NUMBER)
+			next_ack_num -= MAX_SEQUENCE_NUMBER;
+    last_cumulative_seq_num = next_ack_num; //acks are accumulative, so we should store the amount of data. 
 	return next_seq_num;
 }
 
@@ -292,8 +300,9 @@ uint16_t TCPManager::next_ack_num(int datalen)
 // Next ack num = last sequence number received + amount of data received
 uint16_t TCPManager::next_ack_num(int datalen)
 {
-	if(!connection_established)
-		return -1;
+    if(last_seq_num == -1)
+        return -1; //error, this function should not yet be called.
+                    //acks are only cumulative based on the data that has been received: that is, the data that has been returned in sequence.
 
 	//Next ack number will be the recieved_seqNum + datalen
 	uint16_t next_ack_num = last_seq_num + datalen;
