@@ -49,7 +49,7 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
 
 
     sockaddr_in tmp_addr;
-    socklen_t client_addrlen = sizeof(tmp_addr);
+    socklen_t tmp_addrlen = sizeof(tmp_addr);
     bool syn_received, ack_received = false;
 
 
@@ -199,7 +199,7 @@ int TCPManager::custom_send(int sockfd, FILE* fp, const struct sockaddr *remote_
                 last_seq_num = received_packet_headers.h_seq;
                 last_ack_num = received_packet_headers.h_ack;
 
-				if (!(receieved_packet_headers.flags ^ (ACK_FLAG & SYN_FLAG))) 
+				if (!(received_packet_headers.flags ^ (ACK_FLAG & SYN_FLAG))) 
 				{
 					message_received = true;
 					break;
@@ -362,9 +362,9 @@ void populateHeaders(void* buf, packet_headers &headers)
 /*
  * Returns true if the passed in sockaddresses have the same port, address, and family.
  */
-bool compare_sockaddr(const struct sockaddr* sockaddr_1, const* struct* sockaddr_2)
+bool compare_sockaddr(const struct sockaddr_in* sockaddr_1, const struct sockaddr_in* sockaddr_2)
 {
     return sockaddr_1->sin_port == sockaddr_2->sin_port  //same port number
-            && sockaddr_1->in_addr.s_addr == sockaddr_2->in_addr.s_addr //same source address
+            && sockaddr_1->sin_addr.s_addr == sockaddr_2->sin_addr.s_addr //same source address
             && sockaddr_1->sin_family == sockaddr_2->sin_family;
 }
