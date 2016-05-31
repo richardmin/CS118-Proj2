@@ -255,7 +255,6 @@ uint16_t TCPManager::next_seq_num(int datalen)
 	return cached_seq_num;
 }
 */
-
 uint16_t TCPManager::next_seq_num(int datalen)
 {
 	//generate the first seq number, when no ack has yet been received. 
@@ -270,8 +269,9 @@ uint16_t TCPManager::next_seq_num(int datalen)
 	next_ack_num += datalen;
 	if (next_ack_num >= MAX_SEQUENCE_NUMBER)
 			next_ack_num -= MAX_SEQUENCE_NUMBER;
-    last_cumulative_seq_num = next_ack_num; //acks are accumulative, so we should store the amount of data. 
-	return next_seq_num;
+    if(last_cumulative_seq_num >= next_ack_num)
+        last_cumulative_seq_num += next_ack_num; //acks are accumulative, so we should store the amount of data. 
+	return last_cumulative_seq_num;
 }
 
 
@@ -279,24 +279,9 @@ uint16_t TCPManager::next_seq_num(int datalen)
  * Function: next_ack_num()
  * Usage: next_ack_num(len)
  * -------------------------
- * This function generates the next ack number. last_ack_num should be set by the connection.
+ * This function generates the next ack number. last_seq_num should be set by the connection, otherwise it returns an error. 
  * 
  */
- 
- /*
-uint16_t TCPManager::next_ack_num(int datalen)
-{
-	if(!connection_established)
-		return -1;
-
-	int cached_ack_num = last_ack_num;
-	last_ack_num += datalen;
-	if(last_ack_num >= MAX_SEQUENCE_NUMBER) //this might overflow if you pass in too large a number for datalen
-		last_ack_num -= MAX_SEQUENCE_NUMBER;
-	return cached_ack_num;
-}
-*/
-
 // Next ack num = last sequence number received + amount of data received
 uint16_t TCPManager::next_ack_num(int datalen)
 {
