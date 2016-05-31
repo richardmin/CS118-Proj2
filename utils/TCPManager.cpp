@@ -88,8 +88,10 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
 
 
     //Send initial SYN-ACK, set timeout.
-    packet_headers synack_packet = {next_seq_num(0), next_ack_num(1), winnum, SYN_FLAG | ACK_FLAG};
+    packet_headers synack_packet = {next_seq_num(0), next_ack_num(1), MAX_WINDOW_SIZE, SYN_FLAG | ACK_FLAG};
     
+    struct timespec result;
+
     // Wait for ACK, timeout to SYN-ACK
     while(!ack_received)
     {
@@ -129,7 +131,7 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
                 }
                 else if(!(received_packet_headers.flags & SYN_FLAG)) //SYN-ACK lost, resend syn.
                 {
-                    if ( !sendto(sockfd, &syn_packet, PACKET_HEADER_LENGTH, 0, remote_addr, remote_addrlen) )  {
+                    if ( !sendto(sockfd, &synack_packet, PACKET_HEADER_LENGTH, 0, client_addr, client_addrlen) )  {
                         std::cerr << "Error: Could not send syn_packet" << std::endl;
                         return -1;
                     }
@@ -241,20 +243,6 @@ int TCPManager::custom_send(int sockfd, FILE* fp, const struct sockaddr *remote_
  * Note that syn/acks are one byte each.
  */
 
-/*
-uint16_t TCPManager::next_seq_num(int datalen)
-{
-	//generate the first seq number
-	if(last_seq_num == -1)
-		last_seq_num = rand() % MAX_SEQUENCE_NUMBER;
-	
-	int cached_seq_num = last_seq_num;
-	last_seq_num += datalen;
-	if(last_seq_num >= MAX_SEQUENCE_NUMBER) //this might overflow if you pass in too large a number for datalen
-		last_seq_num -= MAX_SEQUENCE_NUMBER;
-	return cached_seq_num;
-}
-*/
 uint16_t TCPManager::next_seq_num(int datalen)
 {
 	//generate the first seq number, when no ack has yet been received. 
@@ -265,12 +253,13 @@ uint16_t TCPManager::next_seq_num(int datalen)
     }
 
     //sequence numbers are cumulative: once you've sent the data the sequence number will go up
-	uint16_t next_seq_num = last_ack_num;
-	next_ack_num += datalen;
-	if (next_ack_num >= MAX_SEQUENCE_NUMBER)
-			next_ack_num -= MAX_SEQUENCE_NUMBER;
-    if(last_cumulative_seq_num >= next_ack_num)
-        last_cumulative_seq_num += next_ack_num; //acks are accumulative, so we should store the amount of data. 
+	uint16_t cache_seq_num = last_ack_num;
+	cache_seq_num += datalen;
+	if (cache_seq_num >= MAX_SEQUENCE_NUMBER)
+			cache_seq_num -= MAX_SEQUENCE_NUMBER;
+    if(last_cumulative_seq_num >= cache_seq_num)
+        cache_seq_num += last_cumulative_seq_num; //acks are accumulative, so we should store the amount of data. 
+    last_cumulative_seq_num = cache_seq_num;
 	return last_cumulative_seq_num;
 }
 
