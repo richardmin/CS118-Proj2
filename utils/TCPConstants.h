@@ -31,7 +31,7 @@ struct packet_headers {
 struct buffer_data {
 	struct timespec send_time; //the time the packet came from
 	uint16_t seq_num;
-	uint16_t ack_num
+	uint16_t ack_num;
 };
 
 
