@@ -145,7 +145,7 @@ int main(int argc, char* argv[])
   struct sockaddr_in addr;
   addr.sin_family = AF_INET;
   addr.sin_port = htons(portnum); 
-  addr.sin_addr.s_addr = htonl(IPADDR_ANY); //use your own IP address. We assume the server is reserved to an IP address here.
+  addr.sin_addr.s_addr = htonl(INADDR_ANY); //use your own IP address. We assume the server is reserved to an IP address here.
   memset(addr.sin_zero, '\0', sizeof(addr.sin_zero));
 
   //bind the socket
@@ -154,7 +154,8 @@ int main(int argc, char* argv[])
     exit(5);
   }
 
-  TCPManager t = new TCPManager();
+  TCPManager t = TCPManager();
+  t.custom_recv(sockfd, fp);
   
   close(sockfd);
 

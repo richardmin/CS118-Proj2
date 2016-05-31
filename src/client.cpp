@@ -99,6 +99,14 @@ int main(int argc, char* argv[])
     std::cerr << "IP Failed to resolve! IP passed in was argv[1]" << std::endl;
     exit(1);
   }
+  //-------------- File to save into -------------------//
+  FILE* fp = fopen("in.data", "w"); //write-only: we're going to be writing to the file. Throw away what previously existed.
+  if (fp == NULL) 
+  {
+    perror("open");
+    std::cerr << "File unable to be opened." << std::endl;
+    exit(2);
+  }
 
   //-------------- Set up socket connection ------------//
   signal(SIGPIPE, SIG_IGN); //Ignore poorly terminated connections from terminating our server
@@ -134,13 +142,13 @@ int main(int argc, char* argv[])
   struct sockaddr_in remote_addr;
   remote_addr.sin_family = AF_INET;
   remote_addr.sin_port = htons(portnum); 
-  remote_addr.sin_addr.s_addr = inet_ntop(IP); 
-  remote_memset(addr.sin_zero, '\0', sizeof(addr.sin_zero));
+  remote_addr.sin_addr.s_addr = inet_addr(IP); 
+  memset(addr.sin_zero, '\0', sizeof(addr.sin_zero));
 
   free(IP);
 
-  TCPManager t = new TCPManager();
-
+  TCPManager t = TCPManager();
+  t.custom_send(sockfd, fp, (sockaddr*) &remote_addr, (socklen_t) sizeof(remote_addr));
 
   close(sockfd);
 }

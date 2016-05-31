@@ -131,7 +131,7 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
                 }
                 else if(!(received_packet_headers.flags & SYN_FLAG)) //SYN-ACK lost, resend syn.
                 {
-                    if ( !sendto(sockfd, &synack_packet, PACKET_HEADER_LENGTH, 0, client_addr, client_addrlen) )  {
+                    if ( !sendto(sockfd, &synack_packet, PACKET_HEADER_LENGTH, 0, (struct sockaddr *) &client_addr, client_addrlen) )  {
                         std::cerr << "Error: Could not send syn_packet" << std::endl;
                         return -1;
                     }
@@ -195,7 +195,7 @@ int TCPManager::custom_send(int sockfd, FILE* fp, const struct sockaddr *remote_
 			} 
 			else
 			{
-                struct packet_headers received_packet_headers;
+                struct packet_headers received_packet_headers;                
                 populateHeaders(buf, received_packet_headers);
 
                 last_seq_num = received_packet_headers.h_seq;
@@ -324,7 +324,7 @@ int TCPManager::timespec_subtract (struct timespec *result, struct timespec *y, 
  * 
  * WARNING: This does not safety checking: void*buf MUST be long enough as well and valid as well as headers must exist.
  */
-void populateHeaders(void* buf, packet_headers &headers)
+void TCPManager::populateHeaders(void* buf, packet_headers &headers)
 {
 	char* buff = (char *) buf;
 	headers.h_seq    = (buff[0] << 8 | buff[1]);
@@ -336,7 +336,7 @@ void populateHeaders(void* buf, packet_headers &headers)
 /*
  * Returns true if the passed in sockaddresses have the same port, address, and family.
  */
-bool compare_sockaddr(const struct sockaddr_in* sockaddr_1, const struct sockaddr_in* sockaddr_2)
+bool TCPManager::compare_sockaddr(const struct sockaddr_in* sockaddr_1, const struct sockaddr_in* sockaddr_2)
 {
     return sockaddr_1->sin_port == sockaddr_2->sin_port  //same port number
             && sockaddr_1->sin_addr.s_addr == sockaddr_2->sin_addr.s_addr //same source address
