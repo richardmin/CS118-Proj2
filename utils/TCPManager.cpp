@@ -13,6 +13,7 @@
 
 #include <string.h>	//mem_cpy()
 
+#include <arpa/inet.h>
 
 TCPManager::TCPManager()
 {
@@ -47,9 +48,6 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
 	sockaddr_in client_addr;
 	socklen_t client_addrlen = sizeof(client_addr);
 
-
-    sockaddr_in tmp_addr;
-    socklen_t tmp_addrlen = sizeof(tmp_addr);
     bool syn_received, ack_received = false;
 
 
@@ -58,9 +56,11 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
     while(!syn_received)
 	{
         //wait for a packet
+        //Note that the received data is HTONS already here, as blocking does so, and recvfrom is stupid
         ssize_t count = recvfrom(sockfd, buf, MAX_PACKET_LENGTH, 0, (struct sockaddr *) &client_addr, &client_addrlen);
     
         if (count == -1) { 
+            perror("recvfrom");
             std::cerr << "recvfrom() ran into error" << std::endl;
             continue;
         }
@@ -73,13 +73,12 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
             struct packet_headers received_packet_headers;
             populateHeaders(buf, received_packet_headers);
             
-            last_seq_num = received_packet_headers.h_seq;
-            last_ack_num = received_packet_headers.h_ack;
+            last_seq_num = (received_packet_headers.h_seq);
+            last_ack_num = (received_packet_headers.h_ack);
             
-            if (!(received_packet_headers.flags ^ SYN_FLAG)) //check that ONLY the syn flag is set.
+            if (!((received_packet_headers.flags) ^ SYN_FLAG)) //check that ONLY the syn flag is set.
             {
-                std::cerr << "Received non-syn packet!" << std::endl;
-                continue;
+                std::cerr << "Receivng syn packet" << std::endl;
             }
 
             syn_received = true;
@@ -91,23 +90,34 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
     packet_headers synack_packet = {next_seq_num(0), next_ack_num(1), MAX_WINDOW_SIZE, SYN_FLAG | ACK_FLAG};
     
     struct timespec result;
+    
+    if (! sendto(sockfd, &synack_packet, PACKET_HEADER_LENGTH, 0, (struct sockaddr *) &client_addr, client_addrlen) ) {
+        std::cerr << "Error: could not send synack_packet" << std::endl;
+        return -1;
+    }
+    else
+    {
+        std::cout << "Sending SYN-ACK" << std::endl;
+    }
+    clock_gettime(CLOCK_MONOTONIC, &last_received_msg_time);
 
     // Wait for ACK, timeout to SYN-ACK
     while(!ack_received)
     {
-        if (! sendto(sockfd, &synack_packet, PACKET_HEADER_LENGTH, 0, (struct sockaddr *) &tmp_addr, tmp_addrlen) ) {
-            std::cerr << "Error: could not send synack_packet" << std::endl;
-            return -1;
-        }
-        clock_gettime(CLOCK_MONOTONIC, &last_received_msg_time);
+        
 
         do
         {
             struct timespec tmp;
             clock_gettime(CLOCK_MONOTONIC, &tmp);
             //wait for a response quietly.
+            client_addrlen = sizeof(client_addr);
             timespec_subtract(&result, &last_received_msg_time, &tmp);
-            ssize_t count = recvfrom(sockfd, buf, MAX_PACKET_LENGTH, MSG_DONTWAIT, (struct sockaddr *) &tmp_addr, &tmp_addrlen); //non-blocking
+            ssize_t count = recvfrom(sockfd, buf, MAX_PACKET_LENGTH, MSG_DONTWAIT, (struct sockaddr *) &client_addr, &client_addrlen); //non-blocking
+            if(count == -1 && errno == EAGAIN)
+            {
+                continue;
+            }
             if (count == -1) { 
                 std::cerr << "recvfrom() ran into error" << std::endl;
                 continue;
@@ -127,9 +137,10 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
                 if (!(received_packet_headers.flags ^ (ACK_FLAG))) 
                 {
                     ack_received = true;
+                    std::cout << "Receiving ACK" << std::endl;
                     break;
                 }
-                else if(!(received_packet_headers.flags & SYN_FLAG)) //SYN-ACK lost, resend syn.
+                else if(!(received_packet_headers.flags ^ SYN_FLAG)) //SYN-ACK lost, resend syn.
                 {
                     if ( !sendto(sockfd, &synack_packet, PACKET_HEADER_LENGTH, 0, (struct sockaddr *) &client_addr, client_addrlen) )  {
                         std::cerr << "Error: Could not send syn_packet" << std::endl;
@@ -138,7 +149,6 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
                     clock_gettime(CLOCK_MONOTONIC, &last_received_msg_time);
                 }
             }
-            std::cout << result.tv_nsec << std::endl;
 
         } while(result.tv_nsec < 50000000); //5 milliseconds = 50000000 nanoseconds
 
@@ -177,7 +187,13 @@ int TCPManager::custom_send(int sockfd, FILE* fp, const struct sockaddr *remote_
             std::cerr << "Error: Could not send syn_packet" << std::endl;
             return -1;
         }
+        else
+        {
+            std::cout << "Sending SYN packet" << std::endl;
+        }
+
         clock_gettime(CLOCK_MONOTONIC, &last_received_msg_time);
+
 		do
 		{
 			struct timespec tmp;
@@ -185,7 +201,12 @@ int TCPManager::custom_send(int sockfd, FILE* fp, const struct sockaddr *remote_
 			//wait for a response quietly.
 			timespec_subtract(&result, &last_received_msg_time, &tmp);
 			ssize_t count = recvfrom(sockfd, buf, MAX_PACKET_LENGTH, MSG_DONTWAIT, (struct sockaddr *) &client_addr, &client_addrlen); //non-blocking
-			if (count == -1) { 
+            if(count == -1 && errno == EAGAIN)
+            {
+                //no data received
+                continue;
+            }
+			else if (count == -1) { 
 				std::cerr << "recvfrom() ran into error" << std::endl;
 				continue;
 			}
@@ -195,28 +216,21 @@ int TCPManager::custom_send(int sockfd, FILE* fp, const struct sockaddr *remote_
 			} 
 			else
 			{
+
                 struct packet_headers received_packet_headers;                
                 populateHeaders(buf, received_packet_headers);
 
                 last_seq_num = received_packet_headers.h_seq;
                 last_ack_num = received_packet_headers.h_ack;
 
-				if (!(received_packet_headers.flags ^ (ACK_FLAG & SYN_FLAG))) 
+				if (!(received_packet_headers.flags ^ (ACK_FLAG | SYN_FLAG))) 
 				{
 					message_received = true;
+                    std::cout << "Received SYN-ACK" << std::endl;
 					break;
 				}
-				else if(!(received_packet_headers.flags & SYN_FLAG))
-				{
-					if ( !sendto(sockfd, &syn_packet, PACKET_HEADER_LENGTH, 0, remote_addr, remote_addrlen) )  {
-						std::cerr << "Error: Could not send syn_packet" << std::endl;
-						return -1;
-					}
-					clock_gettime(CLOCK_MONOTONIC, &last_received_msg_time);
-				}
-			}
 			// std::cout << result.tv_nsec << std::endl;
-
+            }
 		} while(result.tv_nsec < 50000000); //5 milliseconds = 50000000 nanoseconds
 	}
 
@@ -226,6 +240,10 @@ int TCPManager::custom_send(int sockfd, FILE* fp, const struct sockaddr *remote_
 		std::cerr << "Error: Could not send ack_packet" << std::endl;
 		return -1;
 	}
+    else
+    {
+        std::cout << "Sending ACK" << std::endl;
+    }
 
 	
 	return 0;
@@ -327,10 +345,10 @@ int TCPManager::timespec_subtract (struct timespec *result, struct timespec *y, 
 void TCPManager::populateHeaders(void* buf, packet_headers &headers)
 {
 	char* buff = (char *) buf;
-	headers.h_seq    = (buff[0] << 8 | buff[1]);
-    headers.h_ack    = (buff[2] << 8 | buff[3]); 
-    headers.h_window = (buff[4] << 8 | buff[5]);
-    headers.flags    = (buff[6] << 8 | buff[7]); 
+	headers.h_seq    = htons(buff[0] << 8 | buff[1]);
+    headers.h_ack    = htons(buff[2] << 8 | buff[3]); 
+    headers.h_window = htons(buff[4] << 8 | buff[5]);
+    headers.flags    = htons(buff[6] << 8 | buff[7]); 
 }
 
 /*

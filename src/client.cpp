@@ -96,7 +96,7 @@ int main(int argc, char* argv[])
   strcpy(IP, argv[1]);
   if(resolveIP_cstr(IP) == -1)
   {
-    std::cerr << "IP Failed to resolve! IP passed in was argv[1]" << std::endl;
+    std::cerr << "IP Failed to resolve! IP passed in was" << argv[1] << std::endl;
     exit(1);
   }
   //-------------- File to save into -------------------//
@@ -147,8 +147,9 @@ int main(int argc, char* argv[])
 
   free(IP);
 
+  std::cout << "Portnum: " << htons(addr.sin_port) << std::endl;
   TCPManager t = TCPManager();
-  t.custom_send(sockfd, fp, (sockaddr*) &remote_addr, (socklen_t) sizeof(remote_addr));
+  t.custom_send(sockfd, fp, (struct sockaddr*) &remote_addr, (socklen_t) sizeof(remote_addr));
 
   close(sockfd);
 }

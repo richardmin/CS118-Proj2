@@ -156,7 +156,8 @@ int main(int argc, char* argv[])
 
   TCPManager t = TCPManager();
   t.custom_recv(sockfd, fp);
-  
+
+//           int recvlen = recvfrom(sockfd, buf, BUFSIZE, 0, (struct sockaddr *)&remaddr, &addrlen);  
   close(sockfd);
 
 }
