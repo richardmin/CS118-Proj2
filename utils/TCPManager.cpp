@@ -77,7 +77,7 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
             
             if (!((received_packet_headers.flags) ^ SYN_FLAG)) //check that ONLY the syn flag is set.
             {
-                std::cerr << "Receivng syn packet" << std::endl;
+                std::cerr << "Receiving SYN packet" << std::endl;
             }
 
             syn_received = true;
@@ -147,7 +147,7 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
                     }
                     else
                     {
-                        std::cout << "Sending Syn-ACK " << synack_packet.h_ack << " Retransmission" << std::endl;
+                        std::cout << "Sending SYN-ACK " << synack_packet.h_ack << " Retransmission" << std::endl;
                     }
                     clock_gettime(CLOCK_MONOTONIC, &last_received_msg_time);
                 }
@@ -191,7 +191,7 @@ int TCPManager::custom_send(int sockfd, FILE* fp, const struct sockaddr *remote_
     }
     else
     {
-        std::cout << "Sending SYN " << syn_packet.h_seq << std::endl;
+        std::cout << "Sending SYN " << std::endl;
     }
 
     clock_gettime(CLOCK_MONOTONIC, &last_received_msg_time);
@@ -232,7 +232,7 @@ int TCPManager::custom_send(int sockfd, FILE* fp, const struct sockaddr *remote_
 				if (!(received_packet_headers.flags ^ (ACK_FLAG | SYN_FLAG))) 
 				{
 					message_received = true;
-                    std::cout << "Received SYN-ACK " << last_ack_num << std::endl;
+                    std::cout << "Receiving SYN-ACK " << last_ack_num << std::endl;
 					break;
 				}
 			// std::cout << result.tv_nsec << std::endl;
