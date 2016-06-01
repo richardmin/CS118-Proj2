@@ -29,7 +29,6 @@
 int main(int argc, char* argv[])
 {
   srand(time(NULL));
-  rand();
   // int sockfd = socket(AF_INET, SOCK_DGRAM, 0);
   // if(sockfd == -1)
   // {

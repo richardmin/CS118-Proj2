@@ -155,6 +155,19 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
 
         } while(result.tv_nsec < 50000000); //5 milliseconds = 50000000 nanoseconds
 
+        if(!ack_received)
+        {
+            if (! sendto(sockfd, &synack_packet, PACKET_HEADER_LENGTH, 0, (struct sockaddr *) &client_addr, client_addrlen) ) {
+                std::cerr << "Error: could not send synack_packet" << std::endl;
+                return -1;
+            }
+            else
+            {
+                std::cout << "Sending SYN-ACK " << synack_packet.h_ack <<  " Retransmission" << std::endl;
+            }
+            clock_gettime(CLOCK_MONOTONIC, &last_received_msg_time);
+        }
+
     }
 
     //Connection established, can begin sending data.
@@ -191,7 +204,7 @@ int TCPManager::custom_send(int sockfd, FILE* fp, const struct sockaddr *remote_
     }
     else
     {
-        std::cout << "Sending SYN " << std::endl;
+        std::cout << "Sending SYN" << std::endl;
     }
 
     clock_gettime(CLOCK_MONOTONIC, &last_received_msg_time);

@@ -19,7 +19,7 @@
 #define SYN_FLAG 0x2
 #define FIN_FLAG 0x1
 
-#define NOT_IN_USE 65535
+#define NOT_IN_USE 65535 //this is UINT_MAX
 
 struct packet_headers {
 	uint16_t h_seq;
