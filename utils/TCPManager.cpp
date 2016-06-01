@@ -17,7 +17,6 @@
 
 TCPManager::TCPManager()
 {
-	srand(time(NULL)); //note that we must do this for our TCP ack/sequence numbers to be random
 	last_seq_num = NOT_IN_USE;
 	last_ack_num = NOT_IN_USE;
     last_cumulative_seq_num = NOT_IN_USE;
@@ -97,7 +96,7 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
     }
     else
     {
-        std::cout << "Sending SYN-ACK" << std::endl;
+        std::cout << "Sending SYN-ACK " << synack_packet.h_ack << std::endl;
     }
     clock_gettime(CLOCK_MONOTONIC, &last_received_msg_time);
 
@@ -137,14 +136,18 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
                 if (!(received_packet_headers.flags ^ (ACK_FLAG))) 
                 {
                     ack_received = true;
-                    std::cout << "Receiving ACK" << std::endl;
+                    std::cout << "Receiving ACK " << last_ack_num << std::endl;
                     break;
                 }
-                else if(!(received_packet_headers.flags ^ SYN_FLAG)) //SYN-ACK lost, resend syn.
+                else if(!(received_packet_headers.flags ^ SYN_FLAG)) //SYN-ACK lost, and another SYN received. resend syn-ack.
                 {
                     if ( !sendto(sockfd, &synack_packet, PACKET_HEADER_LENGTH, 0, (struct sockaddr *) &client_addr, client_addrlen) )  {
                         std::cerr << "Error: Could not send syn_packet" << std::endl;
                         return -1;
+                    }
+                    else
+                    {
+                        std::cout << "Sending Syn-ACK " << synack_packet.h_ack << " Retransmission" << std::endl;
                     }
                     clock_gettime(CLOCK_MONOTONIC, &last_received_msg_time);
                 }
@@ -180,19 +183,22 @@ int TCPManager::custom_send(int sockfd, FILE* fp, const struct sockaddr *remote_
 
 	struct timespec result;
 	bool message_received = false;
+
+    //send the inital syn packet
+    if ( !sendto(sockfd, &syn_packet, PACKET_HEADER_LENGTH, 0, remote_addr, remote_addrlen) )  {
+        std::cerr << "Error: Could not send syn_packet" << std::endl;
+        return -1;
+    }
+    else
+    {
+        std::cout << "Sending SYN " << syn_packet.h_seq << std::endl;
+    }
+
+    clock_gettime(CLOCK_MONOTONIC, &last_received_msg_time);
+
 	while(!message_received)
 	{
-        //send the inital syn packet
-        if ( !sendto(sockfd, &syn_packet, PACKET_HEADER_LENGTH, 0, remote_addr, remote_addrlen) )  {
-            std::cerr << "Error: Could not send syn_packet" << std::endl;
-            return -1;
-        }
-        else
-        {
-            std::cout << "Sending SYN packet" << std::endl;
-        }
-
-        clock_gettime(CLOCK_MONOTONIC, &last_received_msg_time);
+        
 
 		do
 		{
@@ -226,12 +232,27 @@ int TCPManager::custom_send(int sockfd, FILE* fp, const struct sockaddr *remote_
 				if (!(received_packet_headers.flags ^ (ACK_FLAG | SYN_FLAG))) 
 				{
 					message_received = true;
-                    std::cout << "Received SYN-ACK" << std::endl;
+                    std::cout << "Received SYN-ACK " << last_ack_num << std::endl;
 					break;
 				}
 			// std::cout << result.tv_nsec << std::endl;
             }
 		} while(result.tv_nsec < 50000000); //5 milliseconds = 50000000 nanoseconds
+
+        if(!message_received)
+        {
+            //send the inital syn packet
+            if ( !sendto(sockfd, &syn_packet, PACKET_HEADER_LENGTH, 0, remote_addr, remote_addrlen) )  {
+                std::cerr << "Error: Could not send syn_packet" << std::endl;
+                return -1;
+            }
+            else
+            {
+                std::cout << "Sending SYN Retransmission" << std::endl;
+            }
+
+            clock_gettime(CLOCK_MONOTONIC, &last_received_msg_time);
+        }
 	}
 
 	//Send ACK-Packet
@@ -242,8 +263,10 @@ int TCPManager::custom_send(int sockfd, FILE* fp, const struct sockaddr *remote_
 	}
     else
     {
-        std::cout << "Sending ACK" << std::endl;
+        std::cout << "Sending ACK " << ack_packet.h_ack << std::endl;
     }
+
+    //Now we set up the connection stuffs.
 
 	
 	return 0;
@@ -264,7 +287,7 @@ int TCPManager::custom_send(int sockfd, FILE* fp, const struct sockaddr *remote_
 uint16_t TCPManager::next_seq_num(int datalen)
 {
 	//generate the first seq number, when no ack has yet been received. 
-	if(last_ack_num == -1)
+	if(last_ack_num == NOT_IN_USE)
     {
         last_cumulative_seq_num = rand() % MAX_SEQUENCE_NUMBER;
 		return last_cumulative_seq_num;
@@ -292,7 +315,7 @@ uint16_t TCPManager::next_seq_num(int datalen)
 // Next ack num = last sequence number received + amount of data received
 uint16_t TCPManager::next_ack_num(int datalen)
 {
-    if(last_seq_num == -1)
+    if(last_seq_num == NOT_IN_USE)
         return -1; //error, this function should not yet be called.
                     //acks are only cumulative based on the data that has been received: that is, the data that has been returned in sequence.
 

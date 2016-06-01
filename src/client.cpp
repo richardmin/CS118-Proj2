@@ -28,6 +28,8 @@
 // http://www.microhowto.info/howto/send_a_udp_datagram_in_c.html
 int main(int argc, char* argv[])
 {
+  srand(time(NULL));
+  rand();
   // int sockfd = socket(AF_INET, SOCK_DGRAM, 0);
   // if(sockfd == -1)
   // {
@@ -147,7 +149,7 @@ int main(int argc, char* argv[])
 
   free(IP);
 
-  std::cout << "Portnum: " << htons(addr.sin_port) << std::endl;
+  // std::cout << "Portnum: " << htons(addr.sin_port) << std::endl;
   TCPManager t = TCPManager();
   t.custom_send(sockfd, fp, (struct sockaddr*) &remote_addr, (socklen_t) sizeof(remote_addr));
 

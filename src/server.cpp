@@ -31,6 +31,8 @@
 
 int main(int argc, char* argv[])
 {
+  srand(time(NULL));
+
   // // create a socket with UDP
   // int sockfd = socket(AF_INET, SOCK_DGRAM, 0);
   // if(sockfd == -1)
