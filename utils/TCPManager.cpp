@@ -177,7 +177,7 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
 
     }
 
-    //Connection established, can begin sending data.
+    //Connection established, can begin sending data, according to window size.
 
 
 
