@@ -114,21 +114,18 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
             client_addrlen = sizeof(client_addr);
             timespec_subtract(&result, &last_received_msg_time, &tmp);
             ssize_t count = recvfrom(sockfd, buf, MAX_PACKET_LENGTH, MSG_DONTWAIT, (struct sockaddr *) &received_addr, &received_addrlen); //non-blocking
-            if(!compare_sockaddr(&client_addr, &received_addr))
-            {
-                std::cout << "different source" << std::endl;
-                continue;
-            }
-            else
-            {
-                std::cout << "same source" << std::endl;
-            }
+            
             if(count == -1 && errno == EAGAIN)
             {
                 continue;
             }
             else if (count == -1) { 
                 std::cerr << "recvfrom() ran into error" << std::endl;
+                continue;
+            }
+            else if(!compare_sockaddr(&client_addr, &received_addr))
+            {
+                std::cout << "different source" << std::endl;
                 continue;
             }
             else if (count > MAX_PACKET_LENGTH) {

@@ -37,7 +37,7 @@ private:
 
 	bool compare_sockaddr(const struct sockaddr_in* sockaddr_1, const struct sockaddr_in* sockaddr_2);
 
-	struct buffer_data data_buffer[MAX_SEQUENCE_NUMBER]; //array of all the possible windows, indexed by sequence number. 
+	// struct buffer_data data_buffer[MAX_SEQUENCE_NUMBER]; //array of all the possible windows, indexed by sequence number. 
 	
 	uint16_t ssthresh;
 	uint16_t cwnd;
