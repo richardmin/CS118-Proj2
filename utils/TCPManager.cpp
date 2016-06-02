@@ -23,11 +23,13 @@ TCPManager::TCPManager()
 	connection_established = false;
     cwnd = INIT_WINDOW_SIZE;
     ssthresh = cwnd / 2;
+    data_buffer = new buffer_data[MAX_SEQUENCE_NUMBER];
 
 }
 
 TCPManager::~TCPManager()
 {
+    free(data_buffer);
 }
 
 /* 
@@ -143,7 +145,7 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
                 if (!(received_packet_headers.flags ^ (ACK_FLAG))) 
                 {
                     ack_received = true;
-                    std::cerr << "Receiving ACK " << last_ack_num << std::endl;
+                    std::cout << "Receiving ACK " << last_ack_num << std::endl;
                     break;
                 }
                 else if(!(received_packet_headers.flags ^ SYN_FLAG)) //SYN-ACK lost, and another SYN received. resend syn-ack.
@@ -285,7 +287,7 @@ int TCPManager::custom_send(int sockfd, FILE* fp, const struct sockaddr *remote_
 	}
     else
     {
-        std::cerr << "Sending ACK " << ack_packet.h_ack << std::endl;
+        std::cout << "Sending ACK " << ack_packet.h_ack << std::endl;
     }
 
     //Now we set up the connection data transfer, and wait for a fin

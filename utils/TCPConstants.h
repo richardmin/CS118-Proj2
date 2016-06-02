@@ -30,8 +30,8 @@ struct packet_headers {
 
 struct buffer_data {
 	struct timespec send_time; //the time the packet came from
-	struct packet_headers headers;
 	bool in_use;
+	char data[1032];
 };
 
 
