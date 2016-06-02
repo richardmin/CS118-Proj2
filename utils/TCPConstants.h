@@ -9,7 +9,7 @@
 #define MAX_PACKET_LENGTH PACKET_HEADER_LENGTH + MAX_PACKET_PAYLOAD_LENGTH
 
 #define MAX_SEQUENCE_NUMBER 30720
-#define INIT_CONGESTION_SIZE 1024
+#define INIT_WINDOW_SIZE 1024
 #define INIT_SLOW_START_THRESH 30720
 #define RTT_VAL 500
 #define INIT_RECV_WINDOW 30720
@@ -30,8 +30,8 @@ struct packet_headers {
 
 struct buffer_data {
 	struct timespec send_time; //the time the packet came from
-	uint16_t seq_num;
-	uint16_t ack_num;
+	bool in_use;
+	char data[1032]; //all possible data.
 };
 
 
