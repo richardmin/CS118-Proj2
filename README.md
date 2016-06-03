@@ -1,5 +1,8 @@
 # CS118 Project 2
 
+Done by Richard Min and Joanne Park
+
+Student-ids: 604-451-118 and 104450395
 
 # Notes
 The server IP is automatically assigned. The server will output this number to stderr. 

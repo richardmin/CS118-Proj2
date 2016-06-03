@@ -5,7 +5,7 @@
 #include <time.h>
 
 #define PACKET_HEADER_LENGTH 8
-#define MAX_PACKET_PAYLOAD_LENGTH 1024
+#define MAX_PACKET_PAYLOAD_LENGTH 1024 //Strangely, this is MSS
 #define MAX_PACKET_LENGTH PACKET_HEADER_LENGTH + MAX_PACKET_PAYLOAD_LENGTH
 
 #define MAX_SEQUENCE_NUMBER 30720
@@ -29,8 +29,7 @@ struct packet_headers {
 };
 
 struct buffer_data {
-	struct timespec send_time; //the time the packet came from
-	bool in_use;
+	int size;
 	char data[1032];
 };
 

@@ -8,7 +8,10 @@
 #include <stdio.h>
 #include "TCPConstants.h"
 
+#include <map>4
+
 #define BILLION 1000000000L
+
 
 class TCPManager
 {
@@ -36,11 +39,13 @@ private:
 	void populateHeaders(void* buf, packet_headers &headers);
 
 	bool compare_sockaddr(const struct sockaddr_in* sockaddr_1, const struct sockaddr_in* sockaddr_2);
+	bool in_slow_start();
 
-	struct buffer_data * data_buffer; //array of all the possible windows, indexed by sequence number. 
+	std::map<uint16_t, buffer_data> data_packets;
 	
 	uint16_t ssthresh;
 	uint16_t cwnd;
+
 };
 
 
