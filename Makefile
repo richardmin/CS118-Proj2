@@ -23,7 +23,7 @@ client: $(UTIL_CLASSES)
 
 .PHONY: clean
 clean:
-	rm -rf utils/*.o targets/* *.tar.gz
+	rm -rf utils/*.o targets/* *.tar.gz in.data
 
 tarball: clean
 	tar -cvf $(USERID).tar.gz *.cpp Makefile README.txt Vagrantfile

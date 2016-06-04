@@ -181,7 +181,7 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
     //Connection established, can begin sending data, according to window size.
 
     bool fin_established = false;
-    while(!fin_established)
+    while(!fin_established || !data_packets.empty())
     {
         struct timespec tmp;
         clock_gettime(CLOCK_MONOTONIC, &tmp);
@@ -273,8 +273,11 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
 
                 while(data_packets.size() < cwnd)
                 {
+                    buffer_data b;
                     //read the data from the disk
+                    fgets(b.data+8, 1024, fp);
 
+                    x
                     //send more packets!
                     // struct buffer_data d;
                     // struct packets_headers p = {next_seq_num(0), next_ack_num(0), INIT_RECV_WINDOW, 0};

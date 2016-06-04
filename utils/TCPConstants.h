@@ -30,7 +30,7 @@ struct packet_headers {
 
 struct buffer_data {
 	int size;
-	char data[1032];
+	char data[1033];
 };
 
 
