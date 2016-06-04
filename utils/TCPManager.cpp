@@ -414,7 +414,7 @@ int TCPManager::custom_send(int sockfd, FILE* fp, const struct sockaddr *remote_
     //note that last_received_msg_time is being repurposed to the oldest packet's time.
     
     bool fin_established = false;
-    while(!fin_established && !data_packets.empty())
+    while(!fin_established || !data_packets.empty())
     {
         struct timespec tmp;
         clock_gettime(CLOCK_MONOTONIC, &tmp);
