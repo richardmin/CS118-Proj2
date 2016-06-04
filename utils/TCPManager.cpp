@@ -181,7 +181,8 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
     //Connection established, can begin sending data, according to window size.
 
     bool fin_established = false;
-    while(!fin_established || !data_packets.empty())
+    bool file_complete = false;
+    while(!fin_established || !data_packets.empty() || !file_complete)
     {
         struct timespec tmp;
         clock_gettime(CLOCK_MONOTONIC, &tmp);
@@ -271,18 +272,33 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
                 //double check this ternary 
                 cwnd = in_slow_start() ? cwnd * 2 : cwnd + MAX_PACKET_PAYLOAD_LENGTH;
 
-                while(data_packets.size() < cwnd)
-                {
-                    buffer_data b;
-                    //read the data from the disk
-                    fgets(b.data+8, 1024, fp);
+                if(!file_complete) {
+                    while(data_packets.size() < cwnd)
+                    {
+                        buffer_data b;
+                        packets_headers p = {next_seq_num(readnum), next_ack_num(readnum), INIT_RECV_WINDOW, 0};
+                        copyHeaders(&p, &b.data);
+                        //read the data from the disk
+                        int readnum = fread(b.data+8, sizeof(char), 1024,  fp);
+                        d.size = readnum + 8;
+                        if(readnum != 1024)
+                        {
+                            //end of file reached
+                            file_complete = true;
+                        }                    
 
-                    x
-                    //send more packets!
-                    // struct buffer_data d;
-                    // struct packets_headers p = {next_seq_num(0), next_ack_num(0), INIT_RECV_WINDOW, 0};
+                        //send more packets!
+                        if ( !sendto(sockfd, b.data, readnum + 8, 0, (struct sockaddr*) &client_addr, client_addrlen) )  {
+                            std::cerr << "Error: Could not retrasmit data_packet" << std::endl;
+                            return -1;
+                        }
+                        else
+                        {
+                            std::cout << "Sending data packet " <<  p.h_seq << " " << cwnd << " " << ssthresh << std::endl;
+                        }
 
-                    
+                        
+                    }
                 }
 
 
