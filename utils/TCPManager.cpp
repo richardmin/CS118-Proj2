@@ -207,7 +207,7 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
                 //extract the packet headers.
                 uint16_t sequence_num = it.second.data[0] << 8 | it.second.data[1];
 
-                if ( !sendto(sockfd, &it.second.data, it.second.size, 0, remote_addr, remote_addrlen) )  {
+                if ( !sendto(sockfd, &it.second.data, it.second.size, 0, (struct sockaddr*) &client_addr, client_addrlen) )  {
                 std::cerr << "Error: Could not retrasmit data_packet" << std::endl;
                 return -1;
                 }
@@ -217,13 +217,13 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
                 }
             }
 
-            last_received_msg_time = clock_gettime(CLOCK_MONOTONIC, &last_received_msg_time);
+            clock_gettime(CLOCK_MONOTONIC, &last_received_msg_time);
 
             //update the window sizes.
 
         }
 
-        ssize_t count = recvfrom(sockfd, buf, MAX_PACKET_LENGTH, MSG_DONTWAIT, (struct sockaddr *) &client_addr, &client_addrlen); //non-blocking
+        ssize_t count = recvfrom(sockfd, buf, MAX_PACKET_LENGTH, MSG_DONTWAIT, (struct sockaddr *) &received_addr, &received_addrlen); //non-blocking
 
         if(count == -1 && errno == EAGAIN)
         {
@@ -238,7 +238,7 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
             std::cerr << "Datagram too large for buffer" << std::endl;
             continue;
         } 
-        else if(!compare_sockaddr(&client_addr, &remote_addr))
+        else if(!compare_sockaddr(&client_addr, &received_addr))
         {
             //different source, ignore
             continue;
@@ -251,15 +251,8 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
 
         switch(received_packet_headers.flags)
         {
-            case ACK_FLAG | SYN_FLAG: //ACK_SYN, resubmit. We don't actually track this btw!
-                if ( !sendto(sockfd, &ack_packet, PACKET_HEADER_LENGTH, MSG_DONTWAIT, remote_addr, remote_addrlen) ) {
-                    std::cerr << "Error: Could not send ack_packet" << std::endl;
-                    return -1;
-                }
-                else
-                {
-                    std::cout << "Sending ACK " << ack_packet.h_ack << " Retransmission" << std::endl;
-                }
+            case ACK_FLAG | SYN_FLAG: 
+                std::cerr << "Server shouldn't get SYN_ACK" << std::endl;
                 break;
             case ACK_FLAG:  //ACKing a prior message
                 //remove that packet from the mapping
@@ -283,8 +276,8 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
                     //read the data from the disk
 
                     //send more packets!
-                    struct buffer_data d;
-                    struct packets_headers p = {next_seq_num(), next_ack_num(), INIT_RECV_WINDOW, 0};
+                    // struct buffer_data d;
+                    // struct packets_headers p = {next_seq_num(0), next_ack_num(0), INIT_RECV_WINDOW, 0};
 
                     
                 }
@@ -362,7 +355,7 @@ int TCPManager::custom_send(int sockfd, FILE* fp, const struct sockaddr *remote_
 				std::cerr << "recvfrom() ran into error" << std::endl;
 				continue;
 			}
-            else if(!compare_sockaddr(&client_addr, &remote_addr))
+            else if(!compare_sockaddr(&client_addr, (sockaddr_in *)remote_addr))
             {
                 //different source
                 continue;
@@ -408,7 +401,7 @@ int TCPManager::custom_send(int sockfd, FILE* fp, const struct sockaddr *remote_
 
 	//Send ACK-Packet
 	packet_headers ack_packet = {next_seq_num(0), next_ack_num(1), INIT_RECV_WINDOW, ACK_FLAG};
-	if ( !sendto(sockfd, &ack_packet, PACKET_HEADER_LENGTH, MSG_DONTWAIT, remote_addr, remote_addrlen) ) {
+	if ( !sendto(sockfd, &ack_packet, PACKET_HEADER_LENGTH, 0, remote_addr, remote_addrlen) ) {
 		std::cerr << "Error: Could not send ack_packet" << std::endl;
 		return -1;
 	}
@@ -457,7 +450,7 @@ int TCPManager::custom_send(int sockfd, FILE* fp, const struct sockaddr *remote_
                 }
             }
 
-            last_received_msg_time = clock_gettime(CLOCK_MONOTONIC, &last_received_msg_time);
+            clock_gettime(CLOCK_MONOTONIC, &last_received_msg_time);
 
             //update the window sizes.
 
@@ -478,7 +471,7 @@ int TCPManager::custom_send(int sockfd, FILE* fp, const struct sockaddr *remote_
             std::cerr << "Datagram too large for buffer" << std::endl;
             continue;
         } 
-        else if(!compare_sockaddr(&client_addr, &remote_addr))
+        else if(!compare_sockaddr(&client_addr, (sockaddr_in *) remote_addr))
         {
             //different source, ignore
             continue;
@@ -492,7 +485,7 @@ int TCPManager::custom_send(int sockfd, FILE* fp, const struct sockaddr *remote_
         switch(received_packet_headers.flags)
         {
             case ACK_FLAG | SYN_FLAG: //ACK_SYN, resubmit. We don't actually track in our window, so we inflate slightly slower!
-                if ( !sendto(sockfd, &ack_packet, PACKET_HEADER_LENGTH, MSG_DONTWAIT, remote_addr, remote_addrlen) ) {
+                if ( !sendto(sockfd, &ack_packet, PACKET_HEADER_LENGTH, 0, remote_addr, remote_addrlen) ) {
                     std::cerr << "Error: Could not send ack_packet" << std::endl;
                     return -1;
                 }
@@ -520,7 +513,7 @@ int TCPManager::custom_send(int sockfd, FILE* fp, const struct sockaddr *remote_
                     
                     //write the packet to the file: we're promised in order with this implementation
                     fwrite(buf, sizeof(char), count - 8, fp);
-                    last_received_msg_time = clock_gettime(CLOCK_MONOTONIC, &last_received_msg_time);
+                    clock_gettime(CLOCK_MONOTONIC, &last_received_msg_time);
 
                 }
                 else //we already received this one.
@@ -537,8 +530,10 @@ int TCPManager::custom_send(int sockfd, FILE* fp, const struct sockaddr *remote_
                     //TODO: Fix flag counts
                     struct packet_headers p = {next_seq_num(count), next_ack_num(count), INIT_RECV_WINDOW, ACK_FLAG}; 
                     struct buffer_data d;
-                    d.data = p;
-                    if ( !sendto(sockfd, &it.second.data, it.second.size, 0, remote_addr, remote_addrlen) )  {
+                    copyHeaders(&p, &d.data);
+                    d.size = 8;
+
+                    if ( !sendto(sockfd, d.data, d.size, 0, remote_addr, remote_addrlen) )  {
                         std::cerr << "Error: Could not retrasmit ack_packet" << std::endl;
                         return -1;
                     }
@@ -672,5 +667,21 @@ bool TCPManager::compare_sockaddr(const struct sockaddr_in* sockaddr_1, const st
 
 bool TCPManager::in_slow_start()
 {
-    return cwnd < sshthresh;
+    return cwnd < ssthresh;
+}
+
+void TCPManager::copyHeaders(void* header, void* buffer)
+{
+    for(int i = 0; i < 8; i++)
+    {
+        ((char *)buffer)[i] = ((char *)header)[i];
+    }
+}
+
+void TCPManager::copyData(void* header, void* buffer, int size)
+{
+    for(int i = 8; i < size+8; i++)
+    {
+        ((char *)buffer)[i] = ((char *)header)[i];
+    }
 }

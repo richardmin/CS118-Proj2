@@ -8,7 +8,7 @@
 #include <stdio.h>
 #include "TCPConstants.h"
 
-#include <map>4
+#include <map>
 
 #define BILLION 1000000000L
 
@@ -40,6 +40,9 @@ private:
 
 	bool compare_sockaddr(const struct sockaddr_in* sockaddr_1, const struct sockaddr_in* sockaddr_2);
 	bool in_slow_start();
+
+	void copyHeaders(void* header, void* buffer);
+	void copyData(void* header, void* buffer, int size);
 
 	std::map<uint16_t, buffer_data> data_packets;
 	
