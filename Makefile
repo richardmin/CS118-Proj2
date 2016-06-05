@@ -1,7 +1,7 @@
 CXX=g++
 CXXOPTIMIZE= -O0
 BOOST=
-CXXFLAGS= -g $(CXXOPTIMIZE) -pthread -Wall -std=c++11 
+CXXFLAGS= -g $(CXXOPTIMIZE) -pthread -Wall -std=c++14
 LIBRARIES=$(BOOST)
 USERID=lab2_joanne_richard
 UTIL_CLASSES=utils/IPResolver.o utils/string_lib.o utils/TCPManager.o

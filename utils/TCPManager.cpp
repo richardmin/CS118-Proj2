@@ -53,7 +53,7 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
 
     sockaddr_in received_addr;
     socklen_t received_addrlen = sizeof(received_addr);
-
+    uint16_t last_recv_window;
     bool ack_received = false, syn_received = false, fin_established = false, file_complete = false;
     //Wait for someone to establish a connection through SYN. Ignore all other packets. 
     
@@ -100,7 +100,7 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
 
     //begin the timeout
     clock_gettime(CLOCK_MONOTONIC, &last_received_msg_time);
-    long bits_in_transit;
+    long bits_in_transit = 0;
     // Wait for ACK, timeout to SYN-ACK
     while(!ack_received)
     {
@@ -137,7 +137,7 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
 
                 last_seq_num = received_packet_headers.h_seq;
                 last_ack_num = received_packet_headers.h_ack;
-                bits_in_transit = received_packet_headers.h_window;
+                last_recv_window = received_packet_headers.h_window;
 
                 if (!(received_packet_headers.flags ^ (ACK_FLAG))) 
                 {
@@ -180,7 +180,7 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
     uint16_t acknum = last_seq_num + 1;
     if(acknum > MAX_SEQUENCE_NUMBER)
         acknum -= MAX_SEQUENCE_NUMBER;
-
+    int window_index = seqnum;
     
     //Connection established, can begin sending data, according to window size.
     while( !data_packets.empty() || !file_complete) //three conditions to end server: client unexpected end, out of file data to send
@@ -223,7 +223,7 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
             clock_gettime(CLOCK_MONOTONIC, &last_received_msg_time);
         }
 
-        while(bits_in_transit < cwnd && !file_complete && bits_in_transit < last_recv_window)
+        while(bits_in_transit < cwnd && !file_complete && (bits_in_transit+1024) < last_recv_window)
         {
             buffer_data b;
             //read the data from the disk
@@ -250,7 +250,8 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
                 std::cout << "Sending data packet " <<  p.h_seq << " " << cwnd << " " << ssthresh << std::endl;
             }
 
-            data_packets.insert(std::pair<uint16_t, buffer_data>(p.h_seq + b.size - 8, b));
+            data_packets.insert(std::pair<uint16_t, buffer_data>(p.h_seq + b.size - 8, b)); //index by ack number
+            bits_in_transit += b.size;
             
         }
         
@@ -278,7 +279,7 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
         //received a packet, should process it.
         packet_headers received_packet_headers;                
         populateHeaders(buf, received_packet_headers);
-        bits_in_transit = received_packet_headers.h_window;
+        last_recv_window = received_packet_headers.h_window;
         last_seq_num = received_packet_headers.h_seq;
         last_ack_num = received_packet_headers.h_ack;
 
@@ -288,20 +289,68 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
                 //remove that packet from the mapping
                 //note that we don't particularly care if the ack was received for an imaginary packet
                 std::cout << "Receiving ACK Packet " << received_packet_headers.h_ack;
-                if(data_packets.count(received_packet_headers.h_ack) > 0) //packet has been received, we remove it
+
+
+                //if the window is below the ack number, or the distance between the acks is more than the window size diff
+                //that means it's not a retransmission
+                std::map<char,int>::iterator itlow, itup;
+
+                if(window_index <= received_packet_headers.h_ack)
                 {
-                    data_packets.erase(received_packet_headers.h_ack);
+
+                    itlow = data_packets.lower_bound(window_index);
+                    itup = data_packets.upper_bound(received_packet_headers.h_ack);
+                    
+                    
+
+
+                    int diff = itup().first() - itlow.first();
+                    seqnum += diff;
+                    if(seqnum > MAX_SEQUENCE_NUMBER)
+                        seqnum -= MAX_SEQUENCE_NUMBER;
+
+                    bits_in_transit -= diff;
+
+                    received_packet_headers.erase(itlow, itup);
+                    window_index = data_packets.begin().first;
+                }
+                else if((received_packet_headers.h_ack - window_index) > MAX_WINDOW_SIZE))
+                {
+                    
+                    itlow = data_packets.lower_bound(window_index);
+                    itup = data_packets.upper_bound(received_packet_headers.h_ack);
+
+
+                    int diff = itup().first() - itlow.first();
+                    seqnum += diff;
+                    if(seqnum > MAX_SEQUENCE_NUMBER)
+                        seqnum -= MAX_SEQUENCE_NUMBER;
+
+                    bits_in_transit -= diff;
+
+                    received_packet_headers.erase(itlow, itup);
+                    window_index = data_packets.begin().first;
+                    
                 }
                 else
                 {
-                    std::cout << " Retransmission";
+                    std::cout << " Retransmission" << std::endl;
                 }
-                std::cout << std::endl;
+                // if(data_packets.count(received_packet_headers.h_ack) > 0) //packet has been received, we remove it
+                // {
+                //     data_packets.erase(received_packet_headers.h_ack);
+                // }
+                // else
+                // {
+                //     std::cout << " Retransmission";
+                // }
+                // std::cout << std::endl;
 
                 //ack successfully received
                 cwnd = in_slow_start() ? cwnd * 2 : cwnd + MAX_PACKET_PAYLOAD_LENGTH;
+
                 break;
-            default: //Unknown
+            default: //Unknown type of packet, just drop it. Client shouldn't be sending anything.
                 break;
         }
 
