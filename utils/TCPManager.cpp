@@ -310,6 +310,7 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
     
     if (file_complete) {
         //TODO: fix these seq and ack numbers
+        clock_gettime(CLOCK_MONOTONIC, &last_received_msg_time);
         packet_headers fin_packet = {(uint16_t)NOT_IN_USE, (uint16_t)NOT_IN_USE, cwnd, FIN_FLAG};
         //send the inital FIN packet
         if ( !sendto(sockfd, &fin_packet, PACKET_HEADER_LENGTH, 0, remote_addr, remote_addrlen) )  {
@@ -380,10 +381,29 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
             }
 		} while(result.tv_nsec < 500000000); //5 milliseconds = 50000000 nanoseconds
         
-        //TODO: fix these seq and ack numbers
-        //TODO: Start timer after sending final ack
-        packet_headers final_ack_packet = {(uint16_t)NOT_IN_USE, (uint16_t)NOT_IN_USE, cwnd, ACK_FLAG};
-        //send the final ACK packet
+        if(!fin_established)
+        {
+            //Resend the fin packet
+            if ( !sendto(sockfd, &fin_packet, PACKET_HEADER_LENGTH, 0, remote_addr, remote_addrlen) )  {
+                std::cerr << "Error: Could not send fin_packet" << std::endl;
+                return -1;
+            }
+            else
+            {
+                std::cout << "Sending FIN Retransmission" << std::endl;
+            }
+
+            clock_gettime(CLOCK_MONOTONIC, &last_received_msg_time);
+        }
+        
+    }
+    
+    //TODO: fix these seq and ack numbers
+    //TODO: Start timer after sending final ack
+    clock_gettime(CLOCK_MONOTONIC, &last_received_msg_time);
+    packet_headers final_ack_packet = {(uint16_t)NOT_IN_USE, (uint16_t)NOT_IN_USE, cwnd, ACK_FLAG};
+    //send the final ACK packet
+    do {
         if ( !sendto(sockfd, &final_ack_packet, PACKET_HEADER_LENGTH, 0, remote_addr, remote_addrlen) )  {
             std::cerr << "Error: Could not send final_ack_packet" << std::endl;
             return -1;
@@ -392,9 +412,15 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
         {
             std::cout << "Sending ACK" << std::endl;
         }
+
+        clock_gettime(CLOCK_MONOTONIC, &tmp);
+		timespec_subtract(&result, &last_received_msg_time, &tmp);
+		ssize_t count = recvfrom(sockfd, buf, MAX_PACKET_LENGTH, 0, (struct sockaddr *) &client_addr, &client_addrlen); //blocking
         
-    }
-    
+        if (count > 0)
+            clock_gettime(CLOCK_MONOTONIC, &last_received_msg_time);
+
+    } while (result.tv_nsec < 500000000);
     return 0;
 }
 
