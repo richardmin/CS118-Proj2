@@ -1,4 +1,4 @@
-CXX=g++
+CXX=g++-5
 CXXOPTIMIZE= -O0
 BOOST=
 CXXFLAGS= -g $(CXXOPTIMIZE) -pthread -Wall -std=c++14

@@ -1,8 +1,9 @@
 # -*- mode: ruby -*-
 # vi: set ft=ruby :
 $INSTALL_BASE = <<SCRIPT
+  sudo add-apt-repository ppa:ubuntu-toolchain-r/test
   sudo apt-get update
-  sudo apt-get install -y build-essential vim emacs libboost-all-dev git
+  sudo apt-get install -y build-essential vim emacs libboost-all-dev git g++-5
 SCRIPT
 
 Vagrant.configure(2) do |config|
