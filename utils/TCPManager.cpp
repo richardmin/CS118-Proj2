@@ -307,22 +307,92 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
 
     }
     
-    while (!fin_established) {
-        if (file_complete) {
-                //TODO: fix these seq and ack numbers
-                packet_headers fin_packet = {(uint16_t)NOT_IN_USE, (uint16_t)NOT_IN_USE, cwnd, FIN_FLAG};
-                //send the inital FIN packet
-                if ( !sendto(sockfd, &fin_packet, PACKET_HEADER_LENGTH, 0, remote_addr, remote_addrlen) )  {
-                    std::cerr << "Error: Could not send fin_packet" << std::endl;
-                    return -1;
-                }
-                else
-                {
-                    std::cout << "Sending FIN" << std::endl;
-                }
+    
+    if (file_complete) {
+        //TODO: fix these seq and ack numbers
+        packet_headers fin_packet = {(uint16_t)NOT_IN_USE, (uint16_t)NOT_IN_USE, cwnd, FIN_FLAG};
+        //send the inital FIN packet
+        if ( !sendto(sockfd, &fin_packet, PACKET_HEADER_LENGTH, 0, remote_addr, remote_addrlen) )  {
+            std::cerr << "Error: Could not send fin_packet" << std::endl;
+            return -1;
         }
         else
-            std::cerr << "Should not have gotten here. File should have been completely sent\n" std::endl;
+        {
+            std::cout << "Sending FIN" << std::endl;
+        }
+    }
+    else
+        std::cerr << "Should not have gotten here. File should have been completely sent\n" std::endl;
+    
+    while (!fin_established) {
+		do
+		{
+			clock_gettime(CLOCK_MONOTONIC, &tmp);
+			//wait for a response quietly.
+			timespec_subtract(&result, &last_received_msg_time, &tmp);
+			ssize_t count = recvfrom(sockfd, buf, MAX_PACKET_LENGTH, MSG_DONTWAIT, (struct sockaddr *) &client_addr, &client_addrlen); //non-blocking
+            if(count == -1 && errno == EAGAIN)
+            {
+                //no data received
+                continue;
+            }
+			else if (count == -1) { 
+				std::cerr << "recvfrom() ran into error" << std::endl;
+				continue;
+			}
+            else if(!compare_sockaddr(&client_addr, (sockaddr_in *)remote_addr))
+            {
+                //different source
+                continue;
+            }
+			else if (count > MAX_PACKET_LENGTH) {
+				std::cerr << "Datagram too large for buffer" << std::endl;
+				continue;
+			} 
+			else
+			{
+
+                struct packet_headers received_packet_headers;                
+                populateHeaders(buf, received_packet_headers);
+
+                last_seq_num = received_packet_headers.h_seq;
+                last_ack_num = received_packet_headers.h_ack;
+
+				if (!(received_packet_headers.flags ^ (FIN_FLAG | ACK_FLAG))) 
+				{
+					fin_established = true;
+                    std::cout << "Receiving FIN_ACK " << last_ack_num << std::endl;
+					break;
+				}
+                else if(!(received_packet_headers.flags ^ ACK_FLAG)) //FIN lost, and another regular ACK received. Resend FIN.
+                {
+                    if ( !sendto(sockfd, &fin_packet, PACKET_HEADER_LENGTH, 0, (struct sockaddr *) &remote_addr, remote_addrlen) )  {
+                        std::cerr << "Error: Could not send fin_packet" << std::endl;
+                        return -1;
+                    }
+                    else
+                    {
+                        std::cout << "Sending FIN " << fin_packet.h_ack << " Retransmission" << std::endl;
+                    }
+                    clock_gettime(CLOCK_MONOTONIC, &last_received_msg_time);
+                }
+			// std::cerr << result.tv_nsec << std::endl;
+            }
+		} while(result.tv_nsec < 500000000); //5 milliseconds = 50000000 nanoseconds
+        
+        //TODO: fix these seq and ack numbers
+        //TODO: Start timer after sending final ack
+        packet_headers final_ack_packet = {(uint16_t)NOT_IN_USE, (uint16_t)NOT_IN_USE, cwnd, ACK_FLAG};
+        //send the final ACK packet
+        if ( !sendto(sockfd, &final_ack_packet, PACKET_HEADER_LENGTH, 0, remote_addr, remote_addrlen) )  {
+            std::cerr << "Error: Could not send final_ack_packet" << std::endl;
+            return -1;
+        }
+        else
+        {
+            std::cout << "Sending ACK" << std::endl;
+        }
+        
     }
     
     return 0;
@@ -558,6 +628,9 @@ int TCPManager::custom_send(int sockfd, FILE* fp, const struct sockaddr *remote_
                 }
                 std::cout << std::endl;
 
+                if (fin_established)
+                    break;
+                
                 cwnd = in_slow_start() ? cwnd * 2 : cwnd + MAX_PACKET_PAYLOAD_LENGTH;
 
                 while(data_packets.size() < cwnd)
