@@ -306,6 +306,25 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
         }
 
     }
+    
+    while (!fin_established) {
+        if (file_complete) {
+                //TODO: fix these seq and ack numbers
+                packet_headers fin_packet = {(uint16_t)NOT_IN_USE, (uint16_t)NOT_IN_USE, cwnd, FIN_FLAG};
+                //send the inital FIN packet
+                if ( !sendto(sockfd, &fin_packet, PACKET_HEADER_LENGTH, 0, remote_addr, remote_addrlen) )  {
+                    std::cerr << "Error: Could not send fin_packet" << std::endl;
+                    return -1;
+                }
+                else
+                {
+                    std::cout << "Sending FIN" << std::endl;
+                }
+        }
+        else
+            std::cerr << "Should not have gotten here. File should have been completely sent\n" std::endl;
+    }
+    
     return 0;
 }
 
@@ -502,7 +521,17 @@ int TCPManager::custom_send(int sockfd, FILE* fp, const struct sockaddr *remote_
                 }
                 break;
             
-            case FIN_FLAG:  //FIN flag
+            case FIN_FLAG:  //FIN flag. Send back a FIN_ACK
+                //TODO: fix these seq and ack numbers
+                packet_headers finack_packet = {(uint16_t)NOT_IN_USE, (uint16_t)NOT_IN_USE, cwnd, FIN_FLAG | ACK_FLAG};
+                if ( !sendto(sockfd, &finack_packet, PACKET_HEADER_LENGTH, 0, remote_addr, remote_addrlen) ) {
+                    std::cerr << "Error: Could not send finack_packet" << std::endl;
+                    return -1;
+                }
+                else
+                {
+                    std::cout << "Sending FIN_ACK " << std::endl;
+                }
                 fin_established = true;
                 break;
             case FIN_FLAG | ACK_FLAG: //FIN_ACK established. This should never happen (our window deflates before we send a FIN/FIN-ACK)
