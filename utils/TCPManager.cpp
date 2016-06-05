@@ -488,7 +488,7 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
                 }
                 else
                 {
-                    std::cout << "Sending ACK" << std::endl;
+                    std::cout << "Sending ACK" << final_ack_packet.h_ack << " Retransmissions" << std::endl;
                     clock_gettime(CLOCK_MONOTONIC, &last_received_msg_time);
                 }
             }
@@ -596,7 +596,7 @@ int TCPManager::custom_send(int sockfd, FILE* fp, const struct sockaddr *remote_
 	}
 
 	//Send ACK-Packet
-	packet_headers ack_packet = {next_seq_num(0), next_ack_num(1), INIT_RECV_WINDOW, ACK_FLAG};
+	packet_headers ack_packet = {last_ack_num, last_seq_num + 1, INIT_RECV_WINDOW, ACK_FLAG};
 	if ( !sendto(sockfd, &ack_packet, PACKET_HEADER_LENGTH, 0, remote_addr, remote_addrlen) ) {
 		std::cerr << "Error: Could not send ack_packet" << std::endl;
 		return -1;
@@ -610,48 +610,12 @@ int TCPManager::custom_send(int sockfd, FILE* fp, const struct sockaddr *remote_
     //note that last_received_msg_time is being repurposed to the oldest packet's time.
     
     bool fin_established = false;
-    while(!fin_established || !data_packets.empty())
+    int seqnum = last_ack_num; //immutable
+    int acknum = last_seq_num + 1;
+    packet_headers finack_packet;
+    while(!fin_established)
     {
-        struct timespec tmp;
-        clock_gettime(CLOCK_MONOTONIC, &tmp);
-        timespec_subtract(&result, &last_received_msg_time, &tmp);
-        
-        //check for timeout
-        if(result.tv_nsec > 500000000)
-        {
-
-            if(in_slow_start())
-            {
-                ssthresh = cwnd/2;
-                cwnd = MAX_PACKET_PAYLOAD_LENGTH;
-            }
-            else
-            {
-                cwnd = cwnd/2;
-            }
-
-            //resend the entire window
-            for(auto it : data_packets) //automatically iterate over the map
-            {
-                //extract the packet headers.
-                uint16_t ack_num = it.second.data[2] << 8 | it.second.data[3];
-
-                if ( !sendto(sockfd, &it.second.data, it.second.size, 0, remote_addr, remote_addrlen) )  {
-                    std::cerr << "Error: Could not retrasmit data_packet" << std::endl;
-                    return -1;
-                }
-                else
-                {
-                    std::cout << "Sending ACK packet " <<  ack_num << " Retransmission" << std::endl;
-                }
-            }
-
-            clock_gettime(CLOCK_MONOTONIC, &last_received_msg_time);
-
-            //update the window sizes.
-
-        }
-
+        //note that we have no timeout window; the server handles timeouts for us.
         ssize_t count = recvfrom(sockfd, buf, MAX_PACKET_LENGTH, MSG_DONTWAIT, (struct sockaddr *) &client_addr, &client_addrlen); //non-blocking
 
         if(count == -1 && errno == EAGAIN)
@@ -680,7 +644,7 @@ int TCPManager::custom_send(int sockfd, FILE* fp, const struct sockaddr *remote_
 
         switch(received_packet_headers.flags)
         {
-            case ACK_FLAG | SYN_FLAG: //ACK_SYN, resubmit. We don't actually track in our window, so we inflate slightly slower!
+            case ACK_FLAG | SYN_FLAG: //ACK_SYN, resubmit ACK. We don't actually track in our window, so we inflate slightly slower!
             {
                 if ( !sendto(sockfd, &ack_packet, PACKET_HEADER_LENGTH, 0, remote_addr, remote_addrlen) ) {
                     std::cerr << "Error: Could not send ack_packet" << std::endl;
@@ -689,29 +653,26 @@ int TCPManager::custom_send(int sockfd, FILE* fp, const struct sockaddr *remote_
                 else
                 {
                     std::cout << "Sending ACK " << ack_packet.h_ack << " Retransmission" << std::endl;
+                    clock_gettime(CLOCK_MONOTONIC, &tmp);
                 }
                 break;
             }
-            case FIN_FLAG:  //FIN flag. Send back a FIN_ACK
+            case FIN_FLAG:  //FIN flag. Send back a FIN_ACK.
                 //TODO: fix these seq and ack numbers
             {
-                packet_headers finack_packet = {(uint16_t)NOT_IN_USE, (uint16_t)NOT_IN_USE, cwnd, FIN_FLAG | ACK_FLAG};
+                finack_packet = {seqnum, acknum + 1, INIT_RECV_WINDOW, FIN_FLAG | ACK_FLAG};
                 if ( !sendto(sockfd, &finack_packet, PACKET_HEADER_LENGTH, 0, remote_addr, remote_addrlen) ) {
                     std::cerr << "Error: Could not send finack_packet" << std::endl;
                     return -1;
                 }
                 else
                 {
-                    std::cout << "Sending FIN_ACK " << std::endl;
+                    std::cout << "Sending FIN_ACK " << finack_packet.h_ack << std::endl;
                 }
                 fin_established = true;
+                clock_gettime(CLOCK_MONOTONIC, &last_received_msg_time);
                 break;
             }
-            case FIN_FLAG | ACK_FLAG: //FIN_ACK established. This should never happen (our window deflates before we send a FIN/FIN-ACK)
-            {
-                break;
-            }
-            case ACK_FLAG:  
             default: 
             {
                 //Should be a data packet, we don't care about an ACK or to our data messages
@@ -719,53 +680,60 @@ int TCPManager::custom_send(int sockfd, FILE* fp, const struct sockaddr *remote_
                 //remove that packet from the mapping of our window
                 //note that we don't particularly care if the ack was received for an imaginary packet
                 std::cout << "Receiving data packet " << received_packet_headers.h_ack;
-                if(data_packets.count(received_packet_headers.h_ack) > 0) //packet has been received, we remove it
-                {
-                    data_packets.erase(received_packet_headers.h_ack);
-                    
-                    //write the packet to the file: we're promised in order with this implementation
-                    fwrite(buf, sizeof(char), count - 8, fp);
-                    clock_gettime(CLOCK_MONOTONIC, &last_received_msg_time);
-
-                }
-                else //we already received this one.
-                {
-                    std::cout << " Retransmission";
-                }
-                std::cout << std::endl;
-
-                if (fin_established)
-                    break;
-                
-                cwnd = in_slow_start() ? cwnd * 2 : cwnd + MAX_PACKET_PAYLOAD_LENGTH;
-
-                while(data_packets.size() < cwnd)
-                {
-                    //send more request packets out
-                    //TODO: Fix flag counts
-                    struct packet_headers p = {next_seq_num(count), next_ack_num(count), INIT_RECV_WINDOW, ACK_FLAG}; 
-                    struct buffer_data d;
-                    copyHeaders(&p, &d.data);
-                    d.size = 8;
-
-                    if ( !sendto(sockfd, d.data, d.size, 0, remote_addr, remote_addrlen) )  {
-                        std::cerr << "Error: Could not retrasmit ack_packet" << std::endl;
-                        return -1;
-                    }
-                    else
-                    {
-                        std::cout << "Sending ACK packet " <<  p.h_ack << " Retransmission" << std::endl;
-                    }
-
-                    data_packets.insert(std::pair<uint16_t, buffer_data>(p.h_seq, d));
-                }
-
+                //calculate the ack to send, etc.
 
                 break;
             }
         }
 
     }
+
+    //wait for a possible FIN retransmit
+    do {
+        struct timespec tmp;
+        clock_gettime(CLOCK_MONOTONIC, &tmp);
+
+        timespec_subtract(&result, &last_received_msg_time, &tmp);
+        ssize_t count = recvfrom(sockfd, buf, MAX_PACKET_LENGTH, MSG_DONTWAIT, (struct sockaddr *) &received_addr, &received_addrlen); 
+        if(count == -1 && errno == EAGAIN)
+        {
+            //no data received
+            continue;
+        }
+        else if (count == -1) { 
+            std::cerr << "recvfrom() ran into error" << std::endl;
+            continue;
+        }
+        else if(!compare_sockaddr(&client_addr, &received_addr))
+        {
+            //different source
+            continue;
+        }
+        else if (count > MAX_PACKET_LENGTH) {
+            std::cerr << "Datagram too large for buffer" << std::endl;
+            continue;
+        } 
+        else
+        {
+
+            struct packet_headers received_packet_headers;                
+            populateHeaders(buf, received_packet_headers);
+
+            if (!(received_packet_headers.flags ^ (FIN_FLAG))) 
+            {
+                if ( !sendto(sockfd, &finack_packet, PACKET_HEADER_LENGTH, 0, (struct sockaddr *) &client_addr, client_addrlen) )  {
+                    std::cerr << "Error: Could not send final_ack_packet" << std::endl;
+                    return -1;
+                }
+                else
+                {
+                    std::cout << "Sending FIN_ACK " << finack_packet.h_ack << << " Retransmission" std::endl;
+                    clock_gettime(CLOCK_MONOTONIC, &last_received_msg_time);
+                }
+            }
+        }
+
+    } while (result.tv_nsec < 5000000000);
     return 0;
 
 }
