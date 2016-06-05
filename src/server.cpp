@@ -33,61 +33,6 @@ int main(int argc, char* argv[])
 {
   srand(time(NULL));
 
-  // // create a socket with UDP
-  // int sockfd = socket(AF_INET, SOCK_DGRAM, 0);
-  // if(sockfd == -1)
-  // {
-  //   perror("socket");
-  //   exit(3);
-  // }
-
-  // // allow others to reuse the address
-  // int yes = 1;
-  // if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int)) == -1) {
-  //   perror("setsockopt");
-  //   exit(4);
-  // }
-
-  // // bind address to socket
-  // struct sockaddr_in addr;
-  // addr.sin_family = AF_INET;
-  // addr.sin_port = htons(3000); 
-  // addr.sin_addr.s_addr = htonl(INADDR_ANY); //use your own IP address. We assume the server is reserved to an IP address here.
-  // memset(addr.sin_zero, '\0', sizeof(addr.sin_zero));
-
-  // //bind the socket
-  // if (bind(sockfd, (struct sockaddr*)&addr, sizeof(addr)) == -1) {
-  //   perror("bind");
-  //   exit(5);
-  // }
-
-  
-  // int BUFSIZE = 2048;
-  // struct sockaddr_in remaddr;     // remote address 
-  // socklen_t addrlen = sizeof(remaddr);  
-  // unsigned char buf[BUFSIZE];    // receive buffer 
-  // for (;;) {
-  //           printf("waiting on port %d\n", 3000);
-  //           int recvlen = recvfrom(sockfd, buf, BUFSIZE, 0, (struct sockaddr *)&remaddr, &addrlen);
-  //           printf("received %d bytes\n", recvlen);
-
-  //           // int seqnum = ntohs(buf[0] * 256 | buf[1]);
-  //           // int acknum = ntohs(buf[2] * 256 | buf[3]);
-  //           // int winnum = ntohs(buf[4] * 256 | buf[5]);
-  //           // int flags = ntohs(buf[6] * 256 | buf[7]);
-
-
-  //           //Apparently, recvfrom automatically converts network to byte order. 
-  //           int seqnum = (buf[0] << 8 | buf[1]);
-  //           int acknum = (buf[2] << 8 | buf[3]);
-  //           int winnum = (buf[4] << 8 | buf[5]);
-  //           int flags = (buf[6] << 8 | buf[7]);
-  //           if (recvlen > 0) { 
-  //                   buf[recvlen] = 0;
-  //                   printf("received message: \"%d %d %d %d\"\n", seqnum, acknum, winnum, flags);
-  //           }
-  //   }
-
   int portnum = -1;
   std::string filename;
 

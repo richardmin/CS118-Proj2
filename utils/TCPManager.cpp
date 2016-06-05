@@ -44,47 +44,46 @@ TCPManager::~TCPManager()
  */
 int TCPManager::custom_recv(int sockfd, FILE* fp)
 {
-	char buf[MAX_PACKET_LENGTH];
+    char buf[MAX_PACKET_LENGTH+1]; //will end up null terminated.
 
     //The client we're connecting to: we remember this for the rest of the connection status
     //If we receive packets from someone that isn't this address, we just drop them. 
-	sockaddr_in client_addr;
-	socklen_t client_addrlen = sizeof(client_addr);
+    sockaddr_in client_addr;
+    socklen_t client_addrlen = sizeof(client_addr);
 
     sockaddr_in received_addr;
     socklen_t received_addrlen = sizeof(received_addr);
 
-    bool ack_received = false;
-
-
-
+    bool ack_received = false, syn_received = false, fin_established = false, file_complete = false;
     //Wait for someone to establish a connection through SYN. Ignore all other packets. 
     
     //wait for a packet
     //Note that the received data is HTONS already here, as blocking does so, and recvfrom is stupid
-    ssize_t count = recvfrom(sockfd, buf, MAX_PACKET_LENGTH, 0, (struct sockaddr *) &client_addr, &client_addrlen);
+    while(!syn_received)
+    {
+        ssize_t count = recvfrom(sockfd, buf, MAX_PACKET_LENGTH, 0, (struct sockaddr *) &client_addr, &client_addrlen);
 
-    if (count == -1) { 
-        perror("recvfrom");
-        std::cerr << "recvfrom() ran into error" << std::endl;
-    }
-    else if (count > MAX_PACKET_LENGTH) {
-        std::cerr << "Datagram too large for buffer" << std::endl;
-    }
-    else {
-        //Decompose the header data
-        struct packet_headers received_packet_headers;
-        populateHeaders(buf, received_packet_headers);
-        
-        last_seq_num = (received_packet_headers.h_seq);
-        last_ack_num = (received_packet_headers.h_ack);
-        
-        if (!((received_packet_headers.flags) ^ SYN_FLAG)) //check that ONLY the syn flag is set.
-        {
-            std::cout << "Receiving SYN packet" << std::endl;
+        if (count == -1) { 
+            perror("recvfrom");
+            std::cerr << "recvfrom() ran into error" << std::endl;
+        }
+        else if (count > MAX_PACKET_LENGTH)
+            std::cerr << "Datagram too large for buffer" << std::endl;
+        else {
+            //Decompose the header data
+            struct packet_headers received_packet_headers;
+            populateHeaders(buf, received_packet_headers);
+            
+            last_seq_num = (received_packet_headers.h_seq);
+            last_ack_num = (received_packet_headers.h_ack);
+            
+            if (!((received_packet_headers.flags) ^ SYN_FLAG)) //check that ONLY the syn flag is set.
+            {
+                std::cout << "Receiving SYN packet" << std::endl;
+                syn_received = true;
+            }
         }
     }
-
 
 
     //Send initial SYN-ACK, set timeout.
@@ -92,21 +91,19 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
     
     struct timespec result;
     
-    if (! sendto(sockfd, &synack_packet, PACKET_HEADER_LENGTH, 0, (struct sockaddr *) &client_addr, client_addrlen) ) {
+    if (!sendto(sockfd, &synack_packet, PACKET_HEADER_LENGTH, 0, (struct sockaddr *) &client_addr, client_addrlen) ) {
         std::cerr << "Error: could not send synack_packet" << std::endl;
         return -1;
     }
     else
-    {
         std::cout << "Sending SYN-ACK " << synack_packet.h_ack << std::endl;
-    }
-    clock_gettime(CLOCK_MONOTONIC, &last_received_msg_time);
 
+    //begin the timeout
+    clock_gettime(CLOCK_MONOTONIC, &last_received_msg_time);
+    long bits_in_transit;
     // Wait for ACK, timeout to SYN-ACK
     while(!ack_received)
     {
-        
-
         do
         {
             struct timespec tmp;
@@ -140,6 +137,7 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
 
                 last_seq_num = received_packet_headers.h_seq;
                 last_ack_num = received_packet_headers.h_ack;
+                bits_in_transit = received_packet_headers.h_window;
 
                 if (!(received_packet_headers.flags ^ (ACK_FLAG))) 
                 {
@@ -178,11 +176,14 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
 
     }
 
-    //Connection established, can begin sending data, according to window size.
+    uint16_t seqnum = last_ack_num;
+    uint16_t acknum = last_seq_num + 1;
+    if(acknum > MAX_SEQUENCE_NUMBER)
+        acknum -= MAX_SEQUENCE_NUMBER;
 
-    bool fin_established = false;
-    bool file_complete = false;
-    while(!fin_established || !data_packets.empty() || !file_complete)
+    
+    //Connection established, can begin sending data, according to window size.
+    while( !data_packets.empty() || !file_complete) //three conditions to end server: client unexpected end, out of file data to send
     {
         struct timespec tmp;
         clock_gettime(CLOCK_MONOTONIC, &tmp);
@@ -191,7 +192,7 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
         //check for timeout
         if(result.tv_nsec > 500000000)
         {
-
+            //update window sizes
             if(in_slow_start())
             {
                 ssthresh = cwnd/2;
@@ -208,9 +209,9 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
                 //extract the packet headers.
                 uint16_t sequence_num = it.second.data[0] << 8 | it.second.data[1];
 
-                if ( !sendto(sockfd, &it.second.data, it.second.size, 0, (struct sockaddr*) &client_addr, client_addrlen) )  {
-                std::cerr << "Error: Could not retrasmit data_packet" << std::endl;
-                return -1;
+                if ( !sendto(sockfd, &it.second.data, it.second.size + 8, 0, (struct sockaddr*) &client_addr, client_addrlen) )  {
+                    std::cerr << "Error: Could not retrasmit data_packet" << std::endl;
+                    return -1;
                 }
                 else
                 {
@@ -218,14 +219,43 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
                 }
             }
 
+            //reset the timeout window
             clock_gettime(CLOCK_MONOTONIC, &last_received_msg_time);
-
-            //update the window sizes.
-
         }
 
-        ssize_t count = recvfrom(sockfd, buf, MAX_PACKET_LENGTH, MSG_DONTWAIT, (struct sockaddr *) &received_addr, &received_addrlen); //non-blocking
+        while(bits_in_transit < cwnd && !file_complete && bits_in_transit < last_recv_window)
+        {
+            buffer_data b;
+            //read the data from the disk
+            int readnum = fread(b.data+8, sizeof(char), 1024,  fp);
+            b.size = readnum + 8;
 
+            //note that acknum never increases because we never get data from the client.
+            packet_headers p = {seqnum, acknum, INIT_RECV_WINDOW, 0};
+            copyHeaders(&p, &b.data);
+            seqnum += readnum;
+            if(seqnum > MAX_SEQUENCE_NUMBER)
+                seqnum -= MAX_SEQUENCE_NUMBER;
+
+            if(readnum < 1024)
+                file_complete = true;  
+
+            //send more packets!
+            if ( !sendto(sockfd, b.data, readnum + 8, 0, (struct sockaddr*) &client_addr, client_addrlen) )  {
+                std::cerr << "Error: Could not retrasmit data_packet" << std::endl;
+                return -1;
+            }
+            else
+            {
+                std::cout << "Sending data packet " <<  p.h_seq << " " << cwnd << " " << ssthresh << std::endl;
+            }
+
+            data_packets.insert(std::pair<uint16_t, buffer_data>(p.h_seq + b.size - 8, b));
+            
+        }
+        
+        //check to see if we've received any ACKs
+        ssize_t count = recvfrom(sockfd, buf, MAX_PACKET_LENGTH, MSG_DONTWAIT, (struct sockaddr *) &received_addr, &received_addrlen); //non-blocking
         if(count == -1 && errno == EAGAIN)
         {
             //no data received
@@ -246,15 +276,14 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
         }   
 
         //received a packet, should process it.
-        struct packet_headers received_packet_headers;                
+        packet_headers received_packet_headers;                
         populateHeaders(buf, received_packet_headers);
-
+        bits_in_transit = received_packet_headers.h_window;
+        last_seq_num = received_packet_headers.h_seq;
+        last_ack_num = received_packet_headers.h_ack;
 
         switch(received_packet_headers.flags)
         {
-            case ACK_FLAG | SYN_FLAG: 
-                std::cerr << "Server shouldn't get SYN_ACK" << std::endl;
-                break;
             case ACK_FLAG:  //ACKing a prior message
                 //remove that packet from the mapping
                 //note that we don't particularly care if the ack was received for an imaginary packet
@@ -269,50 +298,9 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
                 }
                 std::cout << std::endl;
 
-                //double check this ternary 
+                //ack successfully received
                 cwnd = in_slow_start() ? cwnd * 2 : cwnd + MAX_PACKET_PAYLOAD_LENGTH;
-
-                if(!file_complete) {
-                    while(data_packets.size() < cwnd)
-                    {
-                        buffer_data b;
-                        packets_headers p = {next_seq_num(readnum), next_ack_num(readnum), INIT_RECV_WINDOW, 0};
-                        copyHeaders(&p, &b.data);
-                        //read the data from the disk
-                        int readnum = fread(b.data+8, sizeof(char), 1024,  fp);
-                        d.size = readnum + 8;
-                        if(readnum != 1024)
-                        {
-                            //end of file reached
-                            file_complete = true;
-                        }                    
-
-                        //send more packets!
-                        if ( !sendto(sockfd, b.data, readnum + 8, 0, (struct sockaddr*) &client_addr, client_addrlen) )  {
-                            std::cerr << "Error: Could not retrasmit data_packet" << std::endl;
-                            return -1;
-                        }
-                        else
-                        {
-                            std::cout << "Sending data packet " <<  p.h_seq << " " << cwnd << " " << ssthresh << std::endl;
-                        }
-
-                        
-                    }
-                }
-
-
                 break;
-            case FIN_FLAG:  //FIN flag
-                fin_established = true;
-                if(data_packets.empty())
-                {
-                    //send fin-ack
-                }
-                break;
-            case FIN_FLAG | ACK_FLAG: //FIN-ACK flag
-                break;
-
             default: //Unknown
                 break;
         }
