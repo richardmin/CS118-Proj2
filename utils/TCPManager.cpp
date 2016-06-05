@@ -54,7 +54,7 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
     sockaddr_in received_addr;
     socklen_t received_addrlen = sizeof(received_addr);
     uint16_t last_recv_window;
-    bool ack_received = false, syn_received = false, file_complete = false;
+    bool ack_received = false, syn_received = false, file_complete = false, fin_ack_established = false;
     //Wait for someone to establish a connection through SYN. Ignore all other packets. 
     
     //wait for a packet
@@ -87,7 +87,7 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
 
 
     //Send initial SYN-ACK, set timeout.
-    packet_headers synack_packet = {next_seq_num(0), next_ack_num(1), cwnd, SYN_FLAG | ACK_FLAG};
+    packet_headers synack_packet = {next_seq_num(0), next_ack_num(1), INIT_RECV_WINDOW, SYN_FLAG | ACK_FLAG};
     
     struct timespec result;
     
@@ -362,8 +362,139 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
         }
 
     }
+    
 
+    //TODO: fix these seq and ack numbers
+    clock_gettime(CLOCK_MONOTONIC, &last_received_msg_time);
+    packet_headers fin_packet = {seqnum, acknum, INIT_RECV_WINDOW, FIN_FLAG};
+    //send the inital FIN packet
+    if ( !sendto(sockfd, &fin_packet, PACKET_HEADER_LENGTH, 0, (struct sockaddr *) &client_addr, client_addrlen) )  {
+        std::cerr << "Error: Could not send fin_packet" << std::endl;
+        return -1;
+    }
+    else
+    {
+        std::cout << "Sending FIN" << std::endl;
+    }
+    seqnum++;
+    
+    while (!fin_ack_established) {
+		do
+		{
+            struct timespec tmp;
+			clock_gettime(CLOCK_MONOTONIC, &tmp);
+			//wait for a response quietly.
+			timespec_subtract(&result, &last_received_msg_time, &tmp);
+			ssize_t count = recvfrom(sockfd, buf, MAX_PACKET_LENGTH, MSG_DONTWAIT, (struct sockaddr *) &received_addr, &received_addrlen); //non-blocking
+            if(count == -1 && errno == EAGAIN)
+            {
+                //no data received
+                continue;
+            }
+			else if (count == -1) { 
+				std::cerr << "recvfrom() ran into error" << std::endl;
+				continue;
+			}
+            else if(!compare_sockaddr(&client_addr, &received_addr))
+            {
+                //different source
+                continue;
+            }
+			else if (count > MAX_PACKET_LENGTH) {
+				std::cerr << "Datagram too large for buffer" << std::endl;
+				continue;
+			} 
+			else
+			{
 
+                struct packet_headers received_packet_headers;                
+                populateHeaders(buf, received_packet_headers);
+
+				if (!(received_packet_headers.flags ^ (FIN_FLAG | ACK_FLAG))) 
+				{
+					fin_ack_established = true;
+                    std::cout << "Receiving FIN_ACK " << last_ack_num << std::endl;
+					break;
+				}
+            }
+		} while(result.tv_nsec < 500000000); //5 milliseconds = 50000000 nanoseconds
+        
+        if(!fin_ack_established)
+        {
+            //Resend the fin packet
+            if ( !sendto(sockfd, &fin_packet, PACKET_HEADER_LENGTH, 0, (struct sockaddr *) &client_addr, client_addrlen) )  {
+                std::cerr << "Error: Could not send fin_packet" << std::endl;
+                return -1;
+            }
+            else
+            {
+                std::cout << "Sending FIN Retransmission" << std::endl;
+            }
+
+            clock_gettime(CLOCK_MONOTONIC, &last_received_msg_time);
+        }
+        
+    }
+    
+
+    
+    packet_headers final_ack_packet = {seqnum, acknum, INIT_RECV_WINDOW, ACK_FLAG};
+    //send the final ACK packet
+    if ( !sendto(sockfd, &final_ack_packet, PACKET_HEADER_LENGTH, 0, (struct sockaddr *) &client_addr, client_addrlen) )  {
+        std::cerr << "Error: Could not send final_ack_packet" << std::endl;
+        return -1;
+    }
+    else
+    {
+        std::cout << "Sending ACK" << std::endl;
+        clock_gettime(CLOCK_MONOTONIC, &last_received_msg_time);
+    }
+
+    do {
+        struct timespec tmp;
+        clock_gettime(CLOCK_MONOTONIC, &tmp);
+
+		timespec_subtract(&result, &last_received_msg_time, &tmp);
+		ssize_t count = recvfrom(sockfd, buf, MAX_PACKET_LENGTH, MSG_DONTWAIT, (struct sockaddr *) &received_addr, &received_addrlen); 
+        if(count == -1 && errno == EAGAIN)
+        {
+            //no data received
+            continue;
+        }
+        else if (count == -1) { 
+            std::cerr << "recvfrom() ran into error" << std::endl;
+            continue;
+        }
+        else if(!compare_sockaddr(&client_addr, &received_addr))
+        {
+            //different source
+            continue;
+        }
+        else if (count > MAX_PACKET_LENGTH) {
+            std::cerr << "Datagram too large for buffer" << std::endl;
+            continue;
+        } 
+        else
+        {
+
+            struct packet_headers received_packet_headers;                
+            populateHeaders(buf, received_packet_headers);
+
+            if (!(received_packet_headers.flags ^ (FIN_FLAG | ACK_FLAG))) 
+            {
+                if ( !sendto(sockfd, &final_ack_packet, PACKET_HEADER_LENGTH, 0, (struct sockaddr *) &client_addr, client_addrlen) )  {
+                    std::cerr << "Error: Could not send final_ack_packet" << std::endl;
+                    return -1;
+                }
+                else
+                {
+                    std::cout << "Sending ACK" << std::endl;
+                    clock_gettime(CLOCK_MONOTONIC, &last_received_msg_time);
+                }
+            }
+        }
+
+    } while (result.tv_nsec < 5000000000);
     return 0;
 }
 
@@ -550,6 +681,7 @@ int TCPManager::custom_send(int sockfd, FILE* fp, const struct sockaddr *remote_
         switch(received_packet_headers.flags)
         {
             case ACK_FLAG | SYN_FLAG: //ACK_SYN, resubmit. We don't actually track in our window, so we inflate slightly slower!
+            {
                 if ( !sendto(sockfd, &ack_packet, PACKET_HEADER_LENGTH, 0, remote_addr, remote_addrlen) ) {
                     std::cerr << "Error: Could not send ack_packet" << std::endl;
                     return -1;
@@ -559,14 +691,29 @@ int TCPManager::custom_send(int sockfd, FILE* fp, const struct sockaddr *remote_
                     std::cout << "Sending ACK " << ack_packet.h_ack << " Retransmission" << std::endl;
                 }
                 break;
-            
-            case FIN_FLAG:  //FIN flag
+            }
+            case FIN_FLAG:  //FIN flag. Send back a FIN_ACK
+                //TODO: fix these seq and ack numbers
+            {
+                packet_headers finack_packet = {(uint16_t)NOT_IN_USE, (uint16_t)NOT_IN_USE, cwnd, FIN_FLAG | ACK_FLAG};
+                if ( !sendto(sockfd, &finack_packet, PACKET_HEADER_LENGTH, 0, remote_addr, remote_addrlen) ) {
+                    std::cerr << "Error: Could not send finack_packet" << std::endl;
+                    return -1;
+                }
+                else
+                {
+                    std::cout << "Sending FIN_ACK " << std::endl;
+                }
                 fin_established = true;
                 break;
+            }
             case FIN_FLAG | ACK_FLAG: //FIN_ACK established. This should never happen (our window deflates before we send a FIN/FIN-ACK)
+            {
                 break;
+            }
             case ACK_FLAG:  
             default: 
+            {
                 //Should be a data packet, we don't care about an ACK or to our data messages
                 //This is because the client would time out and send the appropriate data back. 
                 //remove that packet from the mapping of our window
@@ -587,6 +734,9 @@ int TCPManager::custom_send(int sockfd, FILE* fp, const struct sockaddr *remote_
                 }
                 std::cout << std::endl;
 
+                if (fin_established)
+                    break;
+                
                 cwnd = in_slow_start() ? cwnd * 2 : cwnd + MAX_PACKET_PAYLOAD_LENGTH;
 
                 while(data_packets.size() < cwnd)
@@ -612,6 +762,7 @@ int TCPManager::custom_send(int sockfd, FILE* fp, const struct sockaddr *remote_
 
 
                 break;
+            }
         }
 
     }
