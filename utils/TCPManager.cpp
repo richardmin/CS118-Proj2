@@ -216,7 +216,7 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
                 }
                 else
                 {
-                    std::cout << "Sending data packet " <<  sequence_num << " " << cwnd << " " << ssthresh << " Retransmission" << std::endl;
+                    std::cout << "Sending data packet " << sequence_num << " " << cwnd << " " << ssthresh << " Retransmission" << std::endl;
                 }
             }
 
@@ -224,12 +224,12 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
             clock_gettime(CLOCK_MONOTONIC, &last_received_msg_time);
         }
 
-        if((bytes_in_transit + 1024) >= cwnd)
-            std::cout << "TOO MANY BYTES IN TRANSIT" << std::endl;
-        if(file_complete)
-            std::cout << "FILE COMPLETE" << std::endl;
-        if((bytes_in_transit+1024) >= last_recv_window)
-            std::cout << "GREATER THAN RECEIVER WINDOW " << std::endl;
+        // if((bytes_in_transit + 1024) > cwnd)
+        //     std::cout << "TOO MANY BYTES IN TRANSIT" << std::endl;
+        // if(file_complete)
+        //     std::cout << "FILE COMPLETE" << std::endl;
+        // if((bytes_in_transit+1024) > last_recv_window)
+        //     std::cout << "GREATER THAN RECEIVER WINDOW " << std::endl;
         while((bytes_in_transit + 1024) <= cwnd && !file_complete && (bytes_in_transit+1024) <= last_recv_window)
         {
             buffer_data b;
@@ -741,6 +741,8 @@ int TCPManager::custom_send(int sockfd, FILE* fp, const struct sockaddr *remote_
                     
                 }
                 std::cout << std::endl;
+
+                //Send out ack for the packet received
                 break;
             }
         }
