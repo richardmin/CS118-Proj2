@@ -500,7 +500,7 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
             }
         }
 
-    } while (result.tv_nsec < 5000000000);
+    } while (result.tv_sec < 5);
     return 0;
 }
 
@@ -809,7 +809,7 @@ int TCPManager::custom_send(int sockfd, FILE* fp, const struct sockaddr *remote_
             }
         }
 
-    } while (result.tv_nsec < 5000000000);
+    } while (result.tv_sec < 5);
     return 0;
 
 }
