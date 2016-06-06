@@ -224,7 +224,13 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
             clock_gettime(CLOCK_MONOTONIC, &last_received_msg_time);
         }
 
-        while((bytes_in_transit + 1024) < cwnd && !file_complete && (bytes_in_transit+1024) < last_recv_window)
+        if((bytes_in_transit + 1024) >= cwnd)
+            std::cout << "TOO MANY BYTES IN TRANSIT" << std::endl;
+        if(file_complete)
+            std::cout << "FILE COMPLETE" << std::endl;
+        if((bytes_in_transit+1024) >= last_recv_window)
+            std::cout << "GREATER THAN RECEIVER WINDOW " << std::endl;
+        while((bytes_in_transit + 1024) <= cwnd && !file_complete && (bytes_in_transit+1024) <= last_recv_window)
         {
             buffer_data b;
             //read the data from the disk
