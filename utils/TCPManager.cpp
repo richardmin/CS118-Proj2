@@ -292,7 +292,8 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
                     //remove that packet from the mapping
                     //note that we don't particularly care if the ack was received for an imaginary packet
                 {
-                    // std::cout << "Window index: " << window_index << std::endl;
+                    std::cout << "Window index: " << window_index << " ack number: " << received_packet_headers.h_ack << std::endl;
+
                     // std::cout << "bytes_in_transit " << bytes_in_transit << std::endl;
                     std::cout << "Receiving ACK Packet " << received_packet_headers.h_ack;
 
@@ -310,14 +311,12 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
 
                             // std::cout << "itlow->first: "<<  itlow->first << "window_index: " << window_index<< std::endl;
                             //how much the window moved to the right
-                            int diff = (received_packet_headers.h_ack + 1024) - window_index;
+                            int diff = (received_packet_headers.h_ack + itlow.next()->second.size - 8) - window_index;
                             bytes_in_transit -= diff;
 
 
-
+                            window_index += diff;
                             data_packets.erase(itlow, itup);
-                            window_index = itup->first;
-
                             clock_gettime(CLOCK_MONOTONIC, &last_received_msg_time);
                         }
                         else 
@@ -341,7 +340,6 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
                             itup = data_packets.upper_bound(received_packet_headers.h_ack);
                             data_packets.erase(data_packets.begin(), itup);
         
-                            window_index = itup->first;
                             clock_gettime(CLOCK_MONOTONIC, &last_received_msg_time);
                         }
                         else
