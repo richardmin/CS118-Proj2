@@ -203,7 +203,7 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
             {
                 cwnd = cwnd/2;
             }   
-            if(cwnd < 1024)
+            if(cwnd < 1024) /////woo hacks
                 cwnd = 1024;
 
             //resend the entire window
