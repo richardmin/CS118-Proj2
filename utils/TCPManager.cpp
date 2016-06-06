@@ -261,10 +261,10 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
             }
 
             std::cout << "saved to map at: " << p.h_seq + b.size - 8 << std::endl;
-            data_packets.insert(std::pair<uint16_t, buffer_data>(p.h_seq + b.size - 8, b)); //index by ack number
+            data_packets.insert(std::pair<uint16_t, buffer_data>(p.h_seq, b)); //index by sequence number
             if(window_index == NOT_IN_USE)
             {
-                window_index = p.h_seq + b.size - 8;
+                window_index = p.h_seq;
             }
 
             bytes_in_transit += b.size - 8;
@@ -293,33 +293,36 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
                     //remove that packet from the mapping
                     //note that we don't particularly care if the ack was received for an imaginary packet
                 {
-                    std::cout << "Window index: " << window_index << " ack number: " << received_packet_headers.h_ack << std::endl;
-
-                    // std::cout << "bytes_in_transit " << bytes_in_transit << std::endl;
-                    std::cout << "Receiving ACK Packet " << received_packet_headers.h_ack;
+                    
+                    // std::cout << "Window index: " << window_index << " ack number: " << received_packet_headers.h_ack << 
+                    // " size: " <<  data_packets.find(received_packet_headers.h_ack)->second.size - 8 << std::endl;
+                    // std::cout << "Receiving ACK Packet " << received_packet_headers.h_ack;
+                    // // std::cout << "bytes_in_transit " << bytes_in_transit << std::endl;
 
 
                     //if the window is below the ack number, or the distance between the acks is more than the window size diff
                     //that means it's not a retransmission
-                    std::map<uint16_t,buffer_data>::iterator itlow, itup;
+                    std::map<uint16_t,buffer_data>::iterator itlow, itup, tmp;
 
-                    if(window_index <= received_packet_headers.h_ack)
+                    if(window_index <= received_packet_headers.h_ack - count)
                     {
-                        if(received_packet_headers.h_ack - window_index <= MAX_WINDOW_SIZE)
+                        if(received_packet_headers.h_ack - count - window_index <= MAX_WINDOW_SIZE)
                         {
-                           itlow = data_packets.lower_bound(window_index);
-                            itup = data_packets.upper_bound(received_packet_headers.h_ack);
-
+                            itlow = data_packets.lower_bound(window_index);
+                            itup = data_packets.upper_bound(received_packet_headers.h_ack - count);
+                            tmp = itlow;
+                            long diff = 0;
+                            do
+                            {
+                                diff += tmp->second.size - 8;
+                                tmp++;
+                            } while(tmp != itup);
+                            std::cout << "diff " << diff << std::endl;
                             // std::cout << "itlow->first: "<<  itlow->first << "window_index: " << window_index<< std::endl;
                             //how much the window moved to the right
-                            int diff = (received_packet_headers.h_ack + 
-                                            data_packets.find(received_packet_headers.h_ack)->second.size - 8) 
-                                            - window_index;
-                            std::cout << "diff: " << diff << std::endl;
                             bytes_in_transit -= diff;
-
-
                             window_index += diff;
+
                             data_packets.erase(itlow, itup);
                             clock_gettime(CLOCK_MONOTONIC, &last_received_msg_time);
                         }
@@ -330,10 +333,10 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
                     }
                     else
                     {
-                        if(window_index - received_packet_headers.h_ack>= MAX_WINDOW_SIZE)
+                        if(window_index - received_packet_headers.h_ack - count>= MAX_WINDOW_SIZE)
                         {
                             itlow = data_packets.lower_bound(window_index);
-                            itup = data_packets.upper_bound(received_packet_headers.h_ack);
+                            itup = data_packets.upper_bound(received_packet_headers.h_ack - count);
         
         
                             int diff = MAX_SEQUENCE_NUMBER - (window_index - itup->first);
@@ -341,7 +344,7 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
                             bytes_in_transit -= diff;
         
                             data_packets.erase(itlow, data_packets.end()); //delete to the end
-                            itup = data_packets.upper_bound(received_packet_headers.h_ack);
+                            itup = data_packets.upper_bound(received_packet_headers.h_ack - count);
                             data_packets.erase(data_packets.begin(), itup);
         
                             clock_gettime(CLOCK_MONOTONIC, &last_received_msg_time);
