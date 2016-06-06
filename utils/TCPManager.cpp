@@ -260,6 +260,7 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
                 std::cout << "Sending data packet " <<  p.h_seq << " " << cwnd << " " << ssthresh << std::endl;
             }
 
+            std::cout << "saved to map at: " << p.h_seq + b.size - 8 << std::endl;
             data_packets.insert(std::pair<uint16_t, buffer_data>(p.h_seq + b.size - 8, b)); //index by ack number
             if(window_index == NOT_IN_USE)
             {
@@ -311,7 +312,9 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
 
                             // std::cout << "itlow->first: "<<  itlow->first << "window_index: " << window_index<< std::endl;
                             //how much the window moved to the right
-                            int diff = (received_packet_headers.h_ack + itlow.next()->second.size - 8) - window_index;
+                            int diff = (received_packet_headers.h_ack + 
+                                            data_packets.find(received_packet_headers.h_ack)->second.size - 8) 
+                                            - window_index;
                             bytes_in_transit -= diff;
 
 
