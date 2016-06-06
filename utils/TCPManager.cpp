@@ -202,7 +202,9 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
             else
             {
                 cwnd = cwnd/2;
-            }
+            }   
+            if(cwnd < 1024)
+                cwnd = 1024;
 
             //resend the entire window
             for(auto it : data_packets) //automatically iterate over the map
@@ -619,7 +621,7 @@ int TCPManager::custom_send(int sockfd, FILE* fp, const struct sockaddr *remote_
     uint16_t seqnum = last_ack_num; //immutable
     uint16_t acknum = last_seq_num + 1; //this is also the expected next sequence number
     packet_headers finack_packet;
-    uint16_t window_index = acknum + 1024;
+    uint16_t window_index = acknum;
     uint16_t cached_ack = NOT_IN_USE;
     while(!fin_established)
     {
@@ -688,7 +690,7 @@ int TCPManager::custom_send(int sockfd, FILE* fp, const struct sockaddr *remote_
                 std::cout << "Receiving data packet " << received_packet_headers.h_seq;
                 //calculate the ack to send, etc.
 
-                uint16_t packet_ack = (received_packet_headers.h_seq + count - 8);
+                uint16_t packet_ack = (received_packet_headers.h_seq);
                 if(window_index == packet_ack) //expected packet, in order. Write to disk.
                 {
                     window_index += count - 8;
@@ -706,7 +708,9 @@ int TCPManager::custom_send(int sockfd, FILE* fp, const struct sockaddr *remote_
                         data_packets.erase(search);
                         search = data_packets.find(window_index);
                     }
-                    acknum = window_index;
+
+                    //TODO: Check for wraparounds
+                    acknum = window_index + count - 8;
                 }
                 else if(window_index < packet_ack) 
                 {
@@ -746,7 +750,7 @@ int TCPManager::custom_send(int sockfd, FILE* fp, const struct sockaddr *remote_
                 std::cout << "window_index: " << window_index << " packet_ack: " << packet_ack << std::endl;
 
 
-                packet_headers packet = {seqnum, packet_ack, INIT_RECV_WINDOW, ACK_FLAG}; //hacky
+                packet_headers packet = {seqnum, acknum, INIT_RECV_WINDOW, ACK_FLAG}; //hacky
                 if ( !sendto(sockfd, &packet, PACKET_HEADER_LENGTH, 0, remote_addr, remote_addrlen) ) {
                     std::cerr << "Error: Could not send ack_packet" << std::endl;
                     return -1;
