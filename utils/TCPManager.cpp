@@ -11,7 +11,7 @@
 #include <time.h>
 #include <thread>
 
-#include <string.h>	//mem_cpy()
+#include <string.h>	//memcpy()
 
 #include <arpa/inet.h>
 
@@ -596,7 +596,7 @@ int TCPManager::custom_send(int sockfd, FILE* fp, const struct sockaddr *remote_
 	}
 
 	//Send ACK-Packet
-	packet_headers ack_packet = {last_ack_num, last_seq_num + 1, INIT_RECV_WINDOW, ACK_FLAG};
+	packet_headers ack_packet = {last_ack_num, (uint16_t)(last_seq_num + 1), INIT_RECV_WINDOW, ACK_FLAG};
 	if ( !sendto(sockfd, &ack_packet, PACKET_HEADER_LENGTH, 0, remote_addr, remote_addrlen) ) {
 		std::cerr << "Error: Could not send ack_packet" << std::endl;
 		return -1;
@@ -610,9 +610,10 @@ int TCPManager::custom_send(int sockfd, FILE* fp, const struct sockaddr *remote_
     //note that last_received_msg_time is being repurposed to the oldest packet's time.
     
     bool fin_established = false;
-    int seqnum = last_ack_num; //immutable
-    int acknum = last_seq_num + 1;
+    uint16_t seqnum = last_ack_num; //immutable
+    uint16_t acknum = last_seq_num + 1; //this is also the expected next sequence number
     packet_headers finack_packet;
+    uint16_t window_index = acknum;
     while(!fin_established)
     {
         //note that we have no timeout window; the server handles timeouts for us.
@@ -653,14 +654,13 @@ int TCPManager::custom_send(int sockfd, FILE* fp, const struct sockaddr *remote_
                 else
                 {
                     std::cout << "Sending ACK " << ack_packet.h_ack << " Retransmission" << std::endl;
-                    clock_gettime(CLOCK_MONOTONIC, &tmp);
                 }
                 break;
             }
             case FIN_FLAG:  //FIN flag. Send back a FIN_ACK.
                 //TODO: fix these seq and ack numbers
             {
-                finack_packet = {seqnum, acknum + 1, INIT_RECV_WINDOW, FIN_FLAG | ACK_FLAG};
+                finack_packet = {seqnum, (uint16_t)(received_packet_headers.h_seq + 1), INIT_RECV_WINDOW, FIN_FLAG | ACK_FLAG}; //hacky
                 if ( !sendto(sockfd, &finack_packet, PACKET_HEADER_LENGTH, 0, remote_addr, remote_addrlen) ) {
                     std::cerr << "Error: Could not send finack_packet" << std::endl;
                     return -1;
@@ -679,9 +679,62 @@ int TCPManager::custom_send(int sockfd, FILE* fp, const struct sockaddr *remote_
                 //This is because the client would time out and send the appropriate data back. 
                 //remove that packet from the mapping of our window
                 //note that we don't particularly care if the ack was received for an imaginary packet
-                std::cout << "Receiving data packet " << received_packet_headers.h_ack;
+                std::cout << "Receiving data packet " << received_packet_headers.h_seq;
                 //calculate the ack to send, etc.
 
+                int packet_ack = (received_packet_headers.h_seq + count - 8);
+                if(window_index == packet_ack) //expected packet, in order. Write to disk.
+                {
+                    window_index += count - 8;
+                    if(window_index > MAX_SEQUENCE_NUMBER)
+                        window_index -= MAX_SEQUENCE_NUMBER;
+                    fwrite(buf+8, sizeof(char), count - 8, fp); //write the received data to stream.
+
+                    auto search = data_packets.find(window_index);
+                    while(search != data_packets.end()) //write all the appropriate bits
+                    {
+                        fwrite(search->second.data + 8, sizeof(char), search->second.size, fp); //write the cached data to stream.
+                        window_index += search->second.size;
+                        if(window_index > MAX_SEQUENCE_NUMBER)
+                            window_index -= MAX_SEQUENCE_NUMBER;
+                        data_packets.erase(search);
+                        search = data_packets.find(window_index);
+                    }
+                    acknum = window_index;
+                }
+                else if(window_index < packet_ack) 
+                {
+                    if(received_packet_headers.h_ack - window_index <= MAX_WINDOW_SIZE)//data we received is ahead of our window
+                    {
+                        //add the data into the map, with their ack numbers
+                        buffer_data b;
+                        b.size = count - 8;
+                        memcpy(b.data, buf, count);
+
+                        data_packets.insert(std::pair<uint16_t, buffer_data>(packet_ack, b)); //index by ack number
+                    }
+                    else 
+                    {
+                        std::cout << "Retransmission";
+                    }
+                }
+                else
+                {
+                    if(window_index - received_packet_headers.h_ack >= MAX_WINDOW_SIZE) //data we received is ahead of our window
+                    {
+                        buffer_data b;
+                        b.size = count - 8;
+                        memcpy(b.data, buf, count);
+
+                        data_packets.insert(std::pair<uint16_t, buffer_data>(packet_ack, b)); //index by ack number
+                    }
+                    else
+                    {
+                        std::cout << "Retransmission";
+                    }
+                    
+                }
+                std::cout << std::endl;
                 break;
             }
         }
@@ -694,7 +747,7 @@ int TCPManager::custom_send(int sockfd, FILE* fp, const struct sockaddr *remote_
         clock_gettime(CLOCK_MONOTONIC, &tmp);
 
         timespec_subtract(&result, &last_received_msg_time, &tmp);
-        ssize_t count = recvfrom(sockfd, buf, MAX_PACKET_LENGTH, MSG_DONTWAIT, (struct sockaddr *) &received_addr, &received_addrlen); 
+        ssize_t count = recvfrom(sockfd, buf, MAX_PACKET_LENGTH, MSG_DONTWAIT, (struct sockaddr *) &client_addr, &client_addrlen); 
         if(count == -1 && errno == EAGAIN)
         {
             //no data received
@@ -704,7 +757,7 @@ int TCPManager::custom_send(int sockfd, FILE* fp, const struct sockaddr *remote_
             std::cerr << "recvfrom() ran into error" << std::endl;
             continue;
         }
-        else if(!compare_sockaddr(&client_addr, &received_addr))
+        else if(!compare_sockaddr(&client_addr, (sockaddr_in *)remote_addr))
         {
             //different source
             continue;
@@ -727,7 +780,7 @@ int TCPManager::custom_send(int sockfd, FILE* fp, const struct sockaddr *remote_
                 }
                 else
                 {
-                    std::cout << "Sending FIN_ACK " << finack_packet.h_ack << << " Retransmission" std::endl;
+                    std::cout << "Sending FIN_ACK " << finack_packet.h_ack << " Retransmission" << std::endl;
                     clock_gettime(CLOCK_MONOTONIC, &last_received_msg_time);
                 }
             }
