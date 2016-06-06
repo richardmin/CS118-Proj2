@@ -58,7 +58,7 @@ int main(int argc, char* argv[])
     exit(1);
   }
   //-------------- File to save into -------------------//
-  FILE* fp = fopen("in.data", "w"); //write-only: we're going to be writing to the file. Throw away what previously existed.
+  FILE* fp = fopen("received.data", "w"); //write-only: we're going to be writing to the file. Throw away what previously existed.
   if (fp == NULL) 
   {
     perror("open");

@@ -260,7 +260,7 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
                 std::cout << "Sending data packet " <<  p.h_seq << " " << cwnd << " " << ssthresh << std::endl;
             }
 
-            std::cout << "saved to map at: " << p.h_seq + b.size - 8 << std::endl;
+            // std::cout << "saved to map at: " << p.h_seq + b.size - 8 << std::endl;
             data_packets.insert(std::pair<uint16_t, buffer_data>(p.h_seq, b)); //index by sequence number
             if(window_index == NOT_IN_USE)
             {
@@ -296,7 +296,7 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
                     
                     // std::cout << "Window index: " << window_index << " ack number: " << received_packet_headers.h_ack << 
                     // " size: " <<  data_packets.find(received_packet_headers.h_ack)->second.size - 8 << std::endl;
-                    // std::cout << "Receiving ACK Packet " << received_packet_headers.h_ack;
+                    std::cout << "Receiving ACK Packet " << received_packet_headers.h_ack;
                     // // std::cout << "bytes_in_transit " << bytes_in_transit << std::endl;
 
 
@@ -317,7 +317,7 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
                                 diff += tmp->second.size - 8;
                                 tmp++;
                             } while(tmp != itup);
-                            std::cout << "diff " << diff << std::endl;
+                            // std::cout << "diff " << diff << std::endl;
                             // std::cout << "itlow->first: "<<  itlow->first << "window_index: " << window_index<< std::endl;
                             //how much the window moved to the right
                             bytes_in_transit -= diff;
@@ -721,6 +721,7 @@ int TCPManager::custom_send(int sockfd, FILE* fp, const struct sockaddr *remote_
                     }
                     else 
                     {
+                        std::cout << " window_index < packet_ack ";
                         std::cout << " Retransmission";
                     }
                 }
@@ -736,6 +737,7 @@ int TCPManager::custom_send(int sockfd, FILE* fp, const struct sockaddr *remote_
                     }
                     else
                     {
+                        std::cout << " window_index > packet_ack ";
                         std::cout << " Retransmission";
                     }
                     
