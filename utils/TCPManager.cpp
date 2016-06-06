@@ -23,7 +23,7 @@ TCPManager::TCPManager()
     last_cumulative_seq_num = NOT_IN_USE;
 	connection_established = false;
     cwnd = INIT_WINDOW_SIZE;
-    ssthresh = cwnd / 2;
+    ssthresh = INIT_SLOW_START_THRESH;
 
 }
 
@@ -315,6 +315,7 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
                             int diff = (received_packet_headers.h_ack + 
                                             data_packets.find(received_packet_headers.h_ack)->second.size - 8) 
                                             - window_index;
+                            std::cout << "diff: " << diff << std::endl;
                             bytes_in_transit -= diff;
 
 
