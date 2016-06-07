@@ -306,9 +306,9 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
                     //that means it's not a retransmission
                     std::map<uint16_t,buffer_data>::iterator itlow, itup, tmp;
 
-                    if(window_index <= received_packet_headers.h_ack - count)
+                    if(window_index <= received_packet_headers.h_ack - count + 8)
                     {
-                        if(received_packet_headers.h_ack - count - window_index <= MAX_WINDOW_SIZE)
+                        if(received_packet_headers.h_ack - count + 8 - window_index <= MAX_WINDOW_SIZE)
                         {
                             itlow = data_packets.lower_bound(window_index);
                             itup = data_packets.upper_bound(received_packet_headers.h_ack - count);
@@ -324,6 +324,8 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
                             //how much the window moved to the right
                             bytes_in_transit -= diff;
                             window_index += diff;
+                            if(window_index > MAX_SEQUENCE_NUMBER)
+                                window_index -= MAX_SEQUENCE_NUMBER;
 
                             data_packets.erase(itlow, itup);
                             clock_gettime(CLOCK_MONOTONIC, &last_received_msg_time);
@@ -335,7 +337,7 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
                     }
                     else
                     {
-                        if(window_index - received_packet_headers.h_ack - count>= MAX_WINDOW_SIZE)
+                        if(window_index - received_packet_headers.h_ack - count + 8 >= MAX_WINDOW_SIZE)
                         {
                             itlow = data_packets.lower_bound(window_index);
                             itup = data_packets.upper_bound(received_packet_headers.h_ack - count);
@@ -436,7 +438,7 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
             }
             else
             {
-                std::cout << "Sending packet " << fin_packet.h_seq << " " << cwnd << " " << ssthresh << "FIN" << std::endl;
+                std::cout << "Sending packet " << fin_packet.h_seq << " " << cwnd << " " << ssthresh << " Retransmission FIN" << std::endl;
             }
 
             clock_gettime(CLOCK_MONOTONIC, &last_received_msg_time);
@@ -738,7 +740,7 @@ int TCPManager::custom_send(int sockfd, FILE* fp, const struct sockaddr *remote_
                         buffer_data b;
                         b.size = count - 8;
                         memcpy(b.data, buf, count);
-                        
+
                         std::cout << "INSERTING " << packet_ack << "IN MAP!" << std::endl;
                         data_packets.insert(std::pair<uint16_t, buffer_data>(packet_ack, b)); //index by ack number
                     }
