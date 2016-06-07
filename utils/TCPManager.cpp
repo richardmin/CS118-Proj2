@@ -621,7 +621,7 @@ int TCPManager::custom_send(int sockfd, FILE* fp, const struct sockaddr *remote_
     uint16_t seqnum = last_ack_num; //immutable
     uint16_t acknum = last_seq_num + 1; //this is also the expected next sequence number
     packet_headers finack_packet;
-    uint16_t window_index = acknum;
+    uint16_t window_index = acknum; //indexed by the other sides' sequence number
     uint16_t cached_ack = NOT_IN_USE;
     while(!fin_established)
     {
@@ -691,8 +691,6 @@ int TCPManager::custom_send(int sockfd, FILE* fp, const struct sockaddr *remote_
                 //calculate the ack to send, etc.
 
                 uint16_t packet_ack = (received_packet_headers.h_seq);
-                if(packet_ack > MAX_SEQUENCE_NUMBER)
-                    packet_ack -= MAX_SEQUENCE_NUMBER;
                 if(window_index == packet_ack) //expected packet, in order. Write to disk.
                 {
                     window_index += count - 8;
@@ -705,6 +703,7 @@ int TCPManager::custom_send(int sockfd, FILE* fp, const struct sockaddr *remote_
                     {
                         fwrite(search->second.data + 8, sizeof(char), search->second.size, fp); //write the cached data to stream.
                         window_index += search->second.size;
+                        std::cout << "FOUND " << search->first << " IN MAP!" << std::endl;
                         if(window_index > MAX_SEQUENCE_NUMBER)
                             window_index -= MAX_SEQUENCE_NUMBER;
                         data_packets.erase(search);
@@ -712,19 +711,18 @@ int TCPManager::custom_send(int sockfd, FILE* fp, const struct sockaddr *remote_
                     }
 
                     //TODO: Check for wraparounds
-                    acknum = window_index + count - 8;
-                    if(acknum > MAX_SEQUENCE_NUMBER)
-                        acknum -= MAX_SEQUENCE_NUMBER;
+                    acknum = window_index;
                 }
                 else if(window_index < packet_ack) 
                 {
-                    if(received_packet_headers.h_ack - window_index <= MAX_WINDOW_SIZE)//data we received is ahead of our window
+                    if(received_packet_headers.h_seq - window_index <= MAX_WINDOW_SIZE)//data we received is ahead of our window
                     {
                         //add the data into the map, with their ack numbers
                         buffer_data b;
                         b.size = count - 8;
                         memcpy(b.data, buf, count);
 
+                        std::cout << "INSERTING " << packet_ack << "IN MAP!" << std::endl;
                         data_packets.insert(std::pair<uint16_t, buffer_data>(packet_ack, b)); //index by ack number
                     }
                     else 
@@ -735,12 +733,13 @@ int TCPManager::custom_send(int sockfd, FILE* fp, const struct sockaddr *remote_
                 }
                 else
                 {
-                    if(window_index - received_packet_headers.h_ack >= MAX_WINDOW_SIZE) //data we received is ahead of our window
+                    if(window_index - received_packet_headers.h_seq >= MAX_WINDOW_SIZE) //data we received is ahead of our window
                     {
                         buffer_data b;
                         b.size = count - 8;
                         memcpy(b.data, buf, count);
-
+                        
+                        std::cout << "INSERTING " << packet_ack << "IN MAP!" << std::endl;
                         data_packets.insert(std::pair<uint16_t, buffer_data>(packet_ack, b)); //index by ack number
                     }
                     else
