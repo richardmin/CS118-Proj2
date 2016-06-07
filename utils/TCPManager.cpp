@@ -336,7 +336,7 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
                             {
                                 std::cout << "first: " << tmp->first << std::endl;
                                 diff += tmp->second.size - 8;
-                                data_packets.erase(tmp);
+                                data_packets.erase(tmp++);
                             } while(tmp->first < itup->first && tmp != data_packets.end());
                             // std::cout << "diff " << diff << std::endl;
                             // std::cout << "itlow->first: "<<  itlow->first << "window_index: " << window_index<< std::endl;
