@@ -298,6 +298,7 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
                     
                     // std::cout << "Window index: " << window_index << " ack number: " << received_packet_headers.h_ack << 
                     // " size: " <<  data_packets.find(received_packet_headers.h_ack)->second.size - 8 << std::endl;
+                    count = data_packets.find(received_packet_headers.h_ack)->second.size - 8;
                     std::cout << "Receiving Packet " << received_packet_headers.h_ack;
                     // // std::cout << "bytes_in_transit " << bytes_in_transit << std::endl;
 
@@ -306,9 +307,9 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
                     //that means it's not a retransmission
                     std::map<uint16_t,buffer_data>::iterator itlow, itup, tmp;
 
-                    if(window_index <= received_packet_headers.h_ack - count + 8)
+                    if(window_index <= received_packet_headers.h_ack - count )
                     {
-                        if(received_packet_headers.h_ack - count + 8 - window_index <= MAX_WINDOW_SIZE)
+                        if(received_packet_headers.h_ack - count - window_index <= MAX_WINDOW_SIZE)
                         {
                             itlow = data_packets.lower_bound(window_index);
                             itup = data_packets.upper_bound(received_packet_headers.h_ack - count);
@@ -337,7 +338,7 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
                     }
                     else
                     {
-                        if(window_index - received_packet_headers.h_ack - count + 8 >= MAX_WINDOW_SIZE)
+                        if(window_index - received_packet_headers.h_ack - count >= MAX_WINDOW_SIZE)
                         {
                             itlow = data_packets.lower_bound(window_index);
                             itup = data_packets.upper_bound(received_packet_headers.h_ack - count);
