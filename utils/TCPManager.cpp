@@ -79,7 +79,7 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
             
             if (!((received_packet_headers.flags) ^ SYN_FLAG)) //check that ONLY the syn flag is set.
             {
-                std::cout << "Receiving SYN packet" << std::endl;
+                std::cout << "Receiving packet " << last_ack_num << " SYN"<< std::endl;
                 syn_received = true;
             }
         }
@@ -96,7 +96,7 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
         return -1;
     }
     else
-        std::cout << "Sending SYN-ACK " << synack_packet.h_ack << std::endl;
+        std::cout << "Sending packet " << synack_packet.h_seq << " " << cwnd << " " << ssthresh <<  " SYN" << std::endl;
 
     //begin the timeout
     clock_gettime(CLOCK_MONOTONIC, &last_received_msg_time);
@@ -142,7 +142,7 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
                 if (!(received_packet_headers.flags ^ (ACK_FLAG))) 
                 {
                     ack_received = true;
-                    std::cout << "Receiving ACK " << last_ack_num << std::endl;
+                    std::cout << "Receiving packet " << last_ack_num << std::endl;
                     break;
                 }
                 else if(!(received_packet_headers.flags ^ SYN_FLAG)) //SYN-ACK lost, and another SYN received. resend syn-ack.
@@ -153,7 +153,7 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
                     }
                     else
                     {
-                        std::cout << "Sending SYN-ACK " << synack_packet.h_ack << " Retransmission" << std::endl;
+                        std::cout << "Sending packet " << synack_packet.h_seq << " " << cwnd << " " << ssthresh <<  " Retransmission SYN" << std::endl;
                     }
                     clock_gettime(CLOCK_MONOTONIC, &last_received_msg_time);
                 }
@@ -169,7 +169,7 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
             }
             else
             {
-                std::cout << "Sending SYN-ACK " << synack_packet.h_ack <<  " Retransmission" << std::endl;
+                std::cout << "Sending packet " << synack_packet.h_seq << " " << cwnd << " " << ssthresh <<  " Retransmission SYN" << std::endl;
             }
             clock_gettime(CLOCK_MONOTONIC, &last_received_msg_time);
         }
@@ -218,7 +218,7 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
                 }
                 else
                 {
-                    std::cout << "Sending data packet " << sequence_num << " " << cwnd << " " << ssthresh << " Retransmission" << std::endl;
+                    std::cout << "Sending packet " << sequence_num << " " << cwnd << " " << ssthresh << " Retransmission" << std::endl;
                 }
             }
 
@@ -259,7 +259,7 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
             }
             else
             {
-                std::cout << "Sending data packet " <<  p.h_seq << " " << cwnd << " " << ssthresh << std::endl;
+                std::cout << "Sending packet " <<  p.h_seq << " " << cwnd << " " << ssthresh << std::endl;
             }
 
             // std::cout << "saved to map at: " << p.h_seq + b.size - 8 << std::endl;
@@ -298,7 +298,7 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
                     
                     // std::cout << "Window index: " << window_index << " ack number: " << received_packet_headers.h_ack << 
                     // " size: " <<  data_packets.find(received_packet_headers.h_ack)->second.size - 8 << std::endl;
-                    std::cout << "Receiving ACK Packet " << received_packet_headers.h_ack;
+                    std::cout << "Receiving Packet " << received_packet_headers.h_ack;
                     // // std::cout << "bytes_in_transit " << bytes_in_transit << std::endl;
 
 
@@ -382,7 +382,7 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
     }
     else
     {
-        std::cout << "Sending FIN " << seqnum << std::endl;
+        std::cout << "Sending packet " << fin_packet.h_seq << " " << cwnd << " " << ssthresh << " FIN" << std::endl;
     }
     seqnum++;
     
@@ -421,7 +421,7 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
 				if (!(received_packet_headers.flags ^ (FIN_FLAG | ACK_FLAG))) 
 				{
 					fin_ack_established = true;
-                    std::cout << "Receiving FIN_ACK " << last_ack_num << std::endl;
+                    std::cout << "Receiving packet " << received_packet_headers.h_ack <<  " FIN" << std::endl;
 					break;
 				}
             }
@@ -436,7 +436,7 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
             }
             else
             {
-                std::cout << "Sending FIN " <<  seqnum << " Retransmission" << std::endl;
+                std::cout << "Sending packet " << fin_packet.h_seq << " " << cwnd << " " << ssthresh << "FIN" << std::endl;
             }
 
             clock_gettime(CLOCK_MONOTONIC, &last_received_msg_time);
@@ -454,7 +454,7 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
     }
     else
     {
-        std::cout << "Sending ACK" << std::endl;
+        std::cout << "Sending packet " << final_ack_packet.h_seq << " " << cwnd << " " << ssthresh << std::endl;
         clock_gettime(CLOCK_MONOTONIC, &last_received_msg_time);
     }
 
@@ -496,7 +496,7 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
                 }
                 else
                 {
-                    std::cout << "Sending ACK" << final_ack_packet.h_ack << " Retransmission" << std::endl;
+                    std::cout << "Sending packet " << final_ack_packet.h_seq << " " << cwnd << " " << ssthresh << " Retransmission" << std::endl;
                     clock_gettime(CLOCK_MONOTONIC, &last_received_msg_time);
                 }
             }
@@ -519,7 +519,7 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
 int TCPManager::custom_send(int sockfd, FILE* fp, const struct sockaddr *remote_addr, socklen_t remote_addrlen)
 {
 
-	packet_headers syn_packet = {next_seq_num(0), (uint16_t)NOT_IN_USE, cwnd, SYN_FLAG};
+	packet_headers syn_packet = {next_seq_num(0), (uint16_t)NOT_IN_USE, INIT_RECV_WINDOW, SYN_FLAG};
 
 	char buf[MAX_PACKET_LENGTH];
 
