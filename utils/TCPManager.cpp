@@ -692,7 +692,7 @@ int TCPManager::custom_send(int sockfd, FILE* fp, const struct sockaddr *remote_
 
                 uint16_t packet_ack = (received_packet_headers.h_seq);
                 if(packet_ack > MAX_SEQUENCE_NUMBER)
-                    packet_ack - MAX_SEQUENCE_NUMBER;
+                    packet_ack -= MAX_SEQUENCE_NUMBER;
                 if(window_index == packet_ack) //expected packet, in order. Write to disk.
                 {
                     window_index += count - 8;
