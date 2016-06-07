@@ -580,7 +580,7 @@ int TCPManager::custom_send(int sockfd, FILE* fp, const struct sockaddr *remote_
 				if (!(received_packet_headers.flags ^ (ACK_FLAG | SYN_FLAG))) 
 				{
 					message_received = true;
-                    std::cout << "Receiving packet " << last_ack_num << std::endl;
+                    std::cout << "Receiving packet " << received_packet_headers.h_seq << std::endl;
 					break;
 				}
 			// std::cerr << result.tv_nsec << std::endl;
