@@ -360,7 +360,7 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
                     std::cout << std::endl;
 
                     //ack successfully received
-                    cwnd = in_slow_start() ? cwnd * 2 : cwnd + MAX_PACKET_PAYLOAD_LENGTH;
+                    cwnd = in_slow_start() ? cwnd + MAX_PACKET_PAYLOAD_LENGTH : cwnd + ((long long)MAX_PACKET_PAYLOAD_LENGTH*(long long)MAX_PACKET_PAYLOAD_LENGTH)/(long)cwnd;
 
                     break;
                 }
@@ -502,7 +502,7 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
             }
         }
 
-    } while (result.tv_sec < 5);
+    } while (result.tv_sec < 1);
     return 0;
 }
 
@@ -691,6 +691,8 @@ int TCPManager::custom_send(int sockfd, FILE* fp, const struct sockaddr *remote_
                 //calculate the ack to send, etc.
 
                 uint16_t packet_ack = (received_packet_headers.h_seq);
+                if(packet_ack > MAX_SEQUENCE_NUMBER)
+                    packet_ack - MAX_SEQUENCE_NUMBER;
                 if(window_index == packet_ack) //expected packet, in order. Write to disk.
                 {
                     window_index += count - 8;
@@ -711,6 +713,8 @@ int TCPManager::custom_send(int sockfd, FILE* fp, const struct sockaddr *remote_
 
                     //TODO: Check for wraparounds
                     acknum = window_index + count - 8;
+                    if(acknum > MAX_SEQUENCE_NUMBER)
+                        acknum -= MAX_SEQUENCE_NUMBER;
                 }
                 else if(window_index < packet_ack) 
                 {
@@ -813,9 +817,15 @@ int TCPManager::custom_send(int sockfd, FILE* fp, const struct sockaddr *remote_
                     clock_gettime(CLOCK_MONOTONIC, &last_received_msg_time);
                 }
             }
+            else if(!(received_packet_headers.flags ^ (ACK_FLAG)))
+            {
+                std::cout << "Receiving ACK " << received_packet_headers.h_ack << std::endl;
+                break;
+            }
         }
 
-    } while (result.tv_sec < 5);
+
+    } while (result.tv_nsec < 500000000);
     return 0;
 
 }

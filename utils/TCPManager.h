@@ -47,7 +47,7 @@ private:
 	std::map<uint16_t, buffer_data> data_packets;
 	
 	uint16_t ssthresh;
-	uint16_t cwnd;
+	uint32_t cwnd;
 
 };
 
