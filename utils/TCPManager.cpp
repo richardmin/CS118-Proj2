@@ -536,7 +536,7 @@ int TCPManager::custom_send(int sockfd, FILE* fp, const struct sockaddr *remote_
     }
     else
     {
-        std::cout << "Sending SYN" << std::endl;
+        std::cout << "Sending packet " << syn_packet.h_ack << " SYN" << std::endl;
     }
 
     clock_gettime(CLOCK_MONOTONIC, &last_received_msg_time);
@@ -580,7 +580,7 @@ int TCPManager::custom_send(int sockfd, FILE* fp, const struct sockaddr *remote_
 				if (!(received_packet_headers.flags ^ (ACK_FLAG | SYN_FLAG))) 
 				{
 					message_received = true;
-                    std::cout << "Receiving SYN-ACK " << last_ack_num << std::endl;
+                    std::cout << "Receiving packet " << last_ack_num << std::endl;
 					break;
 				}
 			// std::cerr << result.tv_nsec << std::endl;
@@ -596,7 +596,7 @@ int TCPManager::custom_send(int sockfd, FILE* fp, const struct sockaddr *remote_
             }
             else
             {
-                std::cout << "Sending SYN Retransmission" << std::endl;
+                std::cout << "Sending packet " << syn_packet.h_ack << " Retransmission SYN" << std::endl;
             }
 
             clock_gettime(CLOCK_MONOTONIC, &last_received_msg_time);
@@ -611,7 +611,7 @@ int TCPManager::custom_send(int sockfd, FILE* fp, const struct sockaddr *remote_
 	}
     else
     {
-        std::cout << "Sending ACK " << ack_packet.h_ack << std::endl;
+        std::cout << "Sending packet " << ack_packet.h_ack << std::endl;
     }
 
     //Now we set up the connection data transfer, and wait for a fin
@@ -662,7 +662,7 @@ int TCPManager::custom_send(int sockfd, FILE* fp, const struct sockaddr *remote_
                 }
                 else
                 {
-                    std::cout << "Sending ACK " << ack_packet.h_ack << " Retransmission" << std::endl;
+                    std::cout << "Sending packet " << ack_packet.h_ack << " Retransmission" << std::endl;
                 }
                 break;
             }
@@ -675,7 +675,7 @@ int TCPManager::custom_send(int sockfd, FILE* fp, const struct sockaddr *remote_
                 }
                 else
                 {
-                    std::cout << "Sending FIN_ACK " << finack_packet.h_ack << std::endl;
+                    std::cout << "Sending packet " << finack_packet.h_ack << " FIN"<< std::endl;
                 }
                 fin_established = true;
                 clock_gettime(CLOCK_MONOTONIC, &last_received_msg_time);
@@ -687,7 +687,7 @@ int TCPManager::custom_send(int sockfd, FILE* fp, const struct sockaddr *remote_
                 //This is because the client would time out and send the appropriate data back. 
                 //remove that packet from the mapping of our window
                 //note that we don't particularly care if the ack was received for an imaginary packet
-                std::cout << "Receiving data packet " << received_packet_headers.h_seq;
+                std::cout << "Receiving packet " << received_packet_headers.h_seq;
                 //calculate the ack to send, etc.
 
                 uint16_t packet_ack = (received_packet_headers.h_seq);
@@ -729,7 +729,7 @@ int TCPManager::custom_send(int sockfd, FILE* fp, const struct sockaddr *remote_
                     }
                     else 
                     {
-                        std::cout << " window_index < packet_ack ";
+                        // std::cout << " window_index < packet_ack ";
                         std::cout << " Retransmission";
                     }
                 }
@@ -745,13 +745,13 @@ int TCPManager::custom_send(int sockfd, FILE* fp, const struct sockaddr *remote_
                     }
                     else
                     {
-                        std::cout << " window_index > packet_ack ";
+                        // std::cout << " window_index > packet_ack ";
                         std::cout << " Retransmission";
                     }
                     
                 }
                 std::cout << std::endl;
-                std::cout << "window_index: " << window_index << " packet_ack: " << packet_ack << std::endl;
+                // std::cout << "window_index: " << window_index << " packet_ack: " << packet_ack << std::endl;
 
 
                 packet_headers packet = {seqnum, acknum, INIT_RECV_WINDOW, ACK_FLAG}; //hacky
@@ -761,7 +761,7 @@ int TCPManager::custom_send(int sockfd, FILE* fp, const struct sockaddr *remote_
                 }
                 else
                 {
-                    std::cout << "Sending ACK " << packet.h_ack;
+                    std::cout << "Sending packet " << packet.h_ack;
                     if(cached_ack == packet.h_ack)
                         std::cout << " Retransmission";
                     std::cout << std::endl;
@@ -813,13 +813,13 @@ int TCPManager::custom_send(int sockfd, FILE* fp, const struct sockaddr *remote_
                 }
                 else
                 {
-                    std::cout << "Sending FIN_ACK " << finack_packet.h_ack << " Retransmission" << std::endl;
+                    std::cout << "Sending packet " << finack_packet.h_ack << " Retransmission FIN" << std::endl;
                     clock_gettime(CLOCK_MONOTONIC, &last_received_msg_time);
                 }
             }
             else if(!(received_packet_headers.flags ^ (ACK_FLAG)))
             {
-                std::cout << "Receiving ACK " << received_packet_headers.h_ack << std::endl;
+                std::cout << "Receiving packet " << received_packet_headers.h_seq << std::endl;
                 break;
             }
         }
