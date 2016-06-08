@@ -16,6 +16,7 @@
 #include <arpa/inet.h>
 
 #include <map>
+#include <stdio.h>
 TCPManager::TCPManager()
 {
 	last_seq_num = NOT_IN_USE;
@@ -736,7 +737,7 @@ int TCPManager::custom_send(int sockfd, FILE* fp, const struct sockaddr *remote_
                     if(window_index > MAX_SEQUENCE_NUMBER)
                         window_index -= MAX_SEQUENCE_NUMBER;
                     fwrite(buf+8, sizeof(char), count - 8, fp); //write the received data to stream.
-
+                    fflush(fp);
                     auto search = data_packets.find(window_index);
                     while(search != data_packets.end()) //write all the appropriate bits
                     {
