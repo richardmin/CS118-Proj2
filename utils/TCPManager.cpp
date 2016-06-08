@@ -578,7 +578,7 @@ int TCPManager::custom_send(int sockfd, FILE* fp, const struct sockaddr *remote_
     }
     else
     {
-        std::cout << "Sending packet " << syn_packet.h_ack << " SYN" << std::endl;
+        std::cout << "Sending packet SYN" << std::endl;
     }
 
     clock_gettime(CLOCK_MONOTONIC, &last_received_msg_time);
