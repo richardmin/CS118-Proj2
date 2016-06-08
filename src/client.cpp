@@ -19,6 +19,7 @@
 #include "../utils/TCPManager.h"
 
 #include <sys/socket.h>
+#include <sys/types.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include "../utils/TCPConstants.h"
@@ -58,7 +59,7 @@ int main(int argc, char* argv[])
     exit(1);
   }
   //-------------- File to save into -------------------//
-  FILE* fp = fopen("received.data", "w"); //write-only: we're going to be writing to the file. Throw away what previously existed.
+  FILE* fp = fopen("received.data", "rw+"); //write-only: we're going to be writing to the file. Throw away what previously existed.
   if (fp == NULL) 
   {
     perror("open");
@@ -110,4 +111,19 @@ int main(int argc, char* argv[])
   t.custom_send(sockfd, fp, (struct sockaddr*) &remote_addr, (socklen_t) sizeof(remote_addr));
 
   close(sockfd);
+
+  fseek(fp,-8,SEEK_END);
+  char str[9];
+  char str2[9] = "d\nzygopt";
+  str[8] = 0;
+  fread(str, sizeof(char), 8, fp);
+  std::cout << "BEGIN" << str <<"END"<< std::endl;
+  if(strcmp(str, str2) == 0)
+  {
+    fseek(fp,-8,SEEK_END);
+    ftruncate(fileno(InputFile), ftello(InputFile));
+  }
+  
+
+
 }

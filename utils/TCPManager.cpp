@@ -273,6 +273,12 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
             else
             {
                 std::cout << "Sending packet " <<  p.h_seq << " " << cwnd << " " << ssthresh << std::endl;
+                // std::cout << "b.data: " << std::endl;
+                // for(int z = 8; z <- readnum + 8; z++)
+                // {
+                //     std::cout << b.data[z];
+                // }
+                // std::cout << std::endl;
             }
 
             // std::cout << "saved to map at: " << p.h_seq + b.size - 8 << std::endl;
@@ -746,7 +752,7 @@ int TCPManager::custom_send(int sockfd, FILE* fp, const struct sockaddr *remote_
                         window_index -= MAX_SEQUENCE_NUMBER;
                     fwrite(buf+8, sizeof(char), count - 8, fp); //write the received data to stream.
                     // std::cout << "Data written to stream: ";
-                    // for(int z = 8; z < count ; z++)
+                    // for(int z = 8; z <= count ; z++)
                     // {
                     //     std::cout << buf[z];
                     // }
