@@ -34,12 +34,12 @@ TCPManager::~TCPManager()
 
 void TCPManager::printMap()
 {
-    std::cout << "[";
-    for(auto it: data_packets)
-    {
-        std::cout << "{" << it.first << ", " << it.second.size << "}";
-    }
-    std::cout << std::endl;
+    // std::cout << "[";
+    // for(auto it: data_packets)
+    // {
+    //     std::cout << "{" << it.first << ", " << it.second.size << "}";
+    // }
+    // std::cout << std::endl;
 }
 /* 
  * Function: custom_recv(int sockfd, FILE* fp)
@@ -255,7 +255,7 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
             if(readnum == 0)
                 break;
             b.size = readnum + 8;
-            std::cout << "readnum: " << readnum << std::endl;
+            // std::cout << "readnum: " << readnum << std::endl;
 
             //note that acknum never increases because we never get data from the client.
             packet_headers p = {seqnum, acknum, INIT_RECV_WINDOW, 0};
@@ -342,20 +342,20 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
                                 data_packets.erase(tmp++);
                             } while((tmp)->first + (tmp)->second.size < received_packet_headers.h_ack && tmp != data_packets.end());
                             // std::cout << "diff " << diff << std::endl;
-                            std::cout << "itlow->first: "<<  itlow->first << "window_index: " << window_index<< std::endl;
+                            // std::cout << "itlow->first: "<<  itlow->first << "window_index: " << window_index<< std::endl;
                             //how much the window moved to the right
                             bytes_in_transit -= diff;
                             window_index += diff;
                             if(window_index > MAX_SEQUENCE_NUMBER)
                                 window_index -= MAX_SEQUENCE_NUMBER;
 
-                            std::cout << "first: " << itlow->first + itlow->second.size << " second: " << received_packet_headers.h_ack << std::endl;
+                            // std::cout << "first: " << itlow->first + itlow->second.size << " second: " << received_packet_headers.h_ack << std::endl;
                             // data_packets.erase(data_packets.find(itlow->first), data_packets.find(itup->first));
                             clock_gettime(CLOCK_MONOTONIC, &last_received_msg_time);
                         }
                         else 
                         {
-                            std::cout << " Retransmission <=";
+                            std::cout << " Retransmission";
                         }
                     }
                     else
@@ -370,7 +370,7 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
                             printMap();
                             do
                             {
-                                std::cout << "first: " << tmp->first << std::endl;
+                                // std::cout << "first: " << tmp->first << std::endl;
                                 diff += tmp->second.size - 8;
                                 data_packets.erase(tmp++);
                             } while( tmp != data_packets.end());
@@ -380,7 +380,7 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
                             {
                                 do
                                 {
-                                    std::cout << "first: " << tmp->first << std::endl;
+                                    // std::cout << "first: " << tmp->first << std::endl;
                                     diff += tmp->second.size - 8;
                                     data_packets.erase(tmp++);
                                 } while( tmp->first + tmp->second.size < received_packet_headers.h_ack && tmp != data_packets.end());
@@ -391,13 +391,13 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
                             if(window_index > MAX_SEQUENCE_NUMBER)
                                 window_index -= MAX_SEQUENCE_NUMBER; 
 
-                            std::cout << "first: " << itlow->first + itlow->second.size << " second: " << received_packet_headers.h_ack << std::endl;
+                            // std::cout << "first: " << itlow->first + itlow->second.size << " second: " << received_packet_headers.h_ack << std::endl;
 
                             clock_gettime(CLOCK_MONOTONIC, &last_received_msg_time);
                         }
                         else
                         {
-                            std::cout << " Retransmission >=";
+                            std::cout << " Retransmission";
                         }
                         
                     }
@@ -745,13 +745,13 @@ int TCPManager::custom_send(int sockfd, FILE* fp, const struct sockaddr *remote_
                     if(window_index > MAX_SEQUENCE_NUMBER)
                         window_index -= MAX_SEQUENCE_NUMBER;
                     fwrite(buf+8, sizeof(char), count - 8, fp); //write the received data to stream.
-                    std::cout << "Data written to stream: ";
-                    for(int z = 8; z < count ; z++)
-                    {
-                        std::cout << buf[z];
-                    }
-                    std::cout << std::endl;
-                    std::cout << "window index: " << window_index << "packet_ack: " << packet_ack << std::endl;
+                    // std::cout << "Data written to stream: ";
+                    // for(int z = 8; z < count ; z++)
+                    // {
+                    //     std::cout << buf[z];
+                    // }
+                    // std::cout << std::endl;
+                    // std::cout << "window index: " << window_index << "packet_ack: " << packet_ack << std::endl;
                     // fflush(fp);
                     auto search = data_packets.find(window_index);
                     while(search != data_packets.end()) //write all the appropriate bits
@@ -783,7 +783,7 @@ int TCPManager::custom_send(int sockfd, FILE* fp, const struct sockaddr *remote_
                         b.size = count - 8;
                         memcpy(b.data, buf, count);
 
-                        std::cout << "INSERTING " << packet_ack << "IN MAP!" << std::endl;
+                        // std::cout << "INSERTING " << packet_ack << "IN MAP!" << std::endl;
                         data_packets.insert(std::pair<uint16_t, buffer_data>(packet_ack, b)); //index by ack number
                     }
                     else 
@@ -800,7 +800,7 @@ int TCPManager::custom_send(int sockfd, FILE* fp, const struct sockaddr *remote_
                         b.size = count - 8;
                         memcpy(b.data, buf, count);
 
-                        std::cout << "INSERTING " << packet_ack << "IN MAP!" << std::endl;
+                        // std::cout << "INSERTING " << packet_ack << "IN MAP!" << std::endl;
                         data_packets.insert(std::pair<uint16_t, buffer_data>(packet_ack, b)); //index by ack number
                     }
                     else
