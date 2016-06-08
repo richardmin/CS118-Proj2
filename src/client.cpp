@@ -117,11 +117,11 @@ int main(int argc, char* argv[])
   char str2[9] = "d\nzygopt";
   str[8] = 0;
   fread(str, sizeof(char), 8, fp);
-  std::cout << "BEGIN" << str <<"END"<< std::endl;
+  // std::cout << "BEGIN" << str <<"END"<< std::endl;
   if(strcmp(str, str2) == 0)
   {
     fseek(fp,-8,SEEK_END);
-    ftruncate(fileno(InputFile), ftello(InputFile));
+    ftruncate(fileno(fp), ftello(fp));
   }
   
 

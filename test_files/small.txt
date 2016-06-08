@@ -158,5 +158,3 @@ CS118_project2_demo_fil0
 CS118_project2_demo_fil1
 CS118_project2_demo_fil0
 CS118_project2_demo_fil1
-d
-zygopt
