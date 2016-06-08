@@ -29,4 +29,4 @@ clean:
 	rm -rf utils/*.o targets/* *.tar.gz in.data
 
 tarball: clean
-	tar -cvf $(USERID).tar.gz utils/* src/* Makefile README.txt Vagrantfile report.pdf
+	tar -cvf $(USERID).tar.gz utils/* src/* Makefile README.txt Vagrantfile
