@@ -58,7 +58,7 @@ int main(int argc, char* argv[])
     exit(1);
   }
   //-------------- File to save into -------------------//
-  FILE* fp = fopen("received.data", "w"); //write-only: we're going to be writing to the file. Throw away what previously existed.
+  FILE* fp = fopen("received.data", "w+"); //write-only: we're going to be writing to the file. Throw away what previously existed.
   if (fp == NULL) 
   {
     perror("open");
@@ -110,4 +110,6 @@ int main(int argc, char* argv[])
   t.custom_send_nobuffer(sockfd, fp, (struct sockaddr*) &remote_addr, (socklen_t) sizeof(remote_addr));
 
   close(sockfd);
+
+  
 }

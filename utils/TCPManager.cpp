@@ -747,6 +747,7 @@ int TCPManager::custom_send(int sockfd, FILE* fp, const struct sockaddr *remote_
                 uint16_t packet_ack = (received_packet_headers.h_seq);
                 if(window_index == packet_ack) //expected packet, in order. Write to disk.
                 {
+                    data_packets.erase(window_index);
                     window_index += count - 8;
                     if(window_index > MAX_SEQUENCE_NUMBER)
                         window_index -= MAX_SEQUENCE_NUMBER;
@@ -1078,6 +1079,7 @@ int TCPManager::custom_send_nobuffer(int sockfd, FILE* fp, const struct sockaddr
                 uint16_t packet_ack = (received_packet_headers.h_seq);
                 if(window_index == packet_ack) //expected packet, in order. Write to disk.
                 {
+                    data_packets.erase(window_index);
                     window_index += count - 8;
                     if(window_index > MAX_SEQUENCE_NUMBER)
                         window_index -= MAX_SEQUENCE_NUMBER;
