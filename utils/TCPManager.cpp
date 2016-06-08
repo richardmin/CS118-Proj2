@@ -567,7 +567,7 @@ int TCPManager::custom_send(int sockfd, FILE* fp, const struct sockaddr *remote_
 
 	packet_headers syn_packet = {next_seq_num(0), (uint16_t)NOT_IN_USE, INIT_RECV_WINDOW, SYN_FLAG};
 
-	char buf[MAX_PACKET_LENGTH];
+	char buf[MAX_PACKET_LENGTH+1];
 
 	sockaddr_in client_addr;
 	socklen_t client_addrlen = sizeof(client_addr);
@@ -898,7 +898,7 @@ int TCPManager::custom_send_nobuffer(int sockfd, FILE* fp, const struct sockaddr
 
     packet_headers syn_packet = {next_seq_num(0), (uint16_t)NOT_IN_USE, INIT_RECV_WINDOW, SYN_FLAG};
 
-    char buf[MAX_PACKET_LENGTH];
+    char buf[MAX_PACKET_LENGTH+1];
 
     sockaddr_in client_addr;
     socklen_t client_addrlen = sizeof(client_addr);
