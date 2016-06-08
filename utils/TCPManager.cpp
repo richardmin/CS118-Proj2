@@ -316,7 +316,7 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
                     // std::cout << "Window index: " << window_index << " ack number: " << received_packet_headers.h_ack << 
                     // " size: " <<  data_packets.find(received_packet_headers.h_ack)->second.size - 8 << std::endl;
                     uint16_t size = data_packets.find(window_index)->second.size - 8;
-                    std::cout << "received packet headers: " << received_packet_headers.h_ack << " count: " << count << " window_index: " << window_index << std::endl;
+                    // std::cout << "received packet headers: " << received_packet_headers.h_ack << " count: " << count << " window_index: " << window_index << std::endl;
                     
                     std::cout << "Receiving Packet " << received_packet_headers.h_ack;
                     // // std::cout << "bytes_in_transit " << bytes_in_transit << std::endl;
@@ -337,7 +337,7 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
                             printMap();
                             do
                             {
-                                std::cout << "first: " << tmp->first << std::endl;
+                                // std::cout << "first: " << tmp->first << std::endl;
                                 diff += tmp->second.size - 8;
                                 data_packets.erase(tmp++);
                             } while((tmp)->first + (tmp)->second.size < received_packet_headers.h_ack && tmp != data_packets.end());
