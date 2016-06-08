@@ -337,14 +337,12 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
                                 std::cout << "first: " << tmp->first << std::endl;
                                 diff += tmp->second.size - 8;
                                 data_packets.erase(tmp++);
-                            } while(tmp->first < itup->first && tmp != data_packets.end());
+                            } while((tmp)->first <= itup->first && tmp != data_packets.end());
                             // std::cout << "diff " << diff << std::endl;
                             // std::cout << "itlow->first: "<<  itlow->first << "window_index: " << window_index<< std::endl;
                             //how much the window moved to the right
                             bytes_in_transit -= diff;
                             window_index += diff;
-                            if(diff != 1024)
-                                std::cout << "HUH? diff: " << diff << std::endl;
                             if(window_index > MAX_SEQUENCE_NUMBER)
                                 window_index -= MAX_SEQUENCE_NUMBER;
 
@@ -354,7 +352,7 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
                         }
                         else 
                         {
-                            std::cout << " Retransmission <=";
+                            std::cout << " Retransmission";
                         }
                     }
                     else
@@ -364,15 +362,31 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
                             itlow = data_packets.lower_bound(window_index);
                             itup = data_packets.upper_bound(received_packet_headers.h_ack - count);
         
-        
-                            int diff = MAX_SEQUENCE_NUMBER - (window_index - itup->first);
-        
+                            tmp = data_packets.lower_bound(window_index);
+                            long diff = 0;
+                            printMap();
+                            do
+                            {
+                                std::cout << "first: " << tmp->first << std::endl;
+                                diff += tmp->second.size - 8;
+                                data_packets.erase(tmp++);
+                            } while( tmp != data_packets.end());
+
+                            tmp = data_packets.begin();
+                            do
+                            {
+                                std::cout << "first: " << tmp->first << std::endl;
+                                diff += tmp->second.size - 8;
+                                data_packets.erase(tmp++);
+                            } while( tmp->first <= itup->first && tmp != data_packets.end());
+
                             bytes_in_transit -= diff;
-        
-                            data_packets.erase(itlow, data_packets.end()); //delete to the end
-                            itup = data_packets.upper_bound(received_packet_headers.h_ack - count);
-                            data_packets.erase(data_packets.begin(), itup);
-        
+                            window_index += diff;                            
+                            if(window_index > MAX_SEQUENCE_NUMBER)
+                                window_index -= MAX_SEQUENCE_NUMBER; 
+
+                            std::cout << "first: " << itlow->first << " second: " << itup->first << std::endl;
+
                             clock_gettime(CLOCK_MONOTONIC, &last_received_msg_time);
                         }
                         else
