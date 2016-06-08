@@ -71,7 +71,7 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
     //Note that the received data is HTONS already here, as blocking does so, and recvfrom is stupid
     while(!syn_received)
     {
-        memset(buf, 0, sizeof(buf));
+        memset(buf, 0, MAX_PACKET_LENGTH+1);
         ssize_t count = recvfrom(sockfd, buf, MAX_PACKET_LENGTH, 0, (struct sockaddr *) &client_addr, &client_addrlen);
 
         if (count == -1) { 
@@ -122,7 +122,7 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
             //wait for a response quietly.
             client_addrlen = sizeof(client_addr);
             timespec_subtract(&result, &last_received_msg_time, &tmp);
-            memset(buf, 0, sizeof(buf));
+            memset(buf, 0, MAX_PACKET_LENGTH+1);
             ssize_t count = recvfrom(sockfd, buf, MAX_PACKET_LENGTH, MSG_DONTWAIT, (struct sockaddr *) &received_addr, &received_addrlen); //non-blocking
             
             if(count == -1 && errno == EAGAIN)
@@ -437,7 +437,7 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
 			clock_gettime(CLOCK_MONOTONIC, &tmp);
 			//wait for a response quietly.
 			timespec_subtract(&result, &last_received_msg_time, &tmp);
-            memset(buf, 0, sizeof(buf));
+            memset(buf, 0, MAX_PACKET_LENGTH+1);
 			ssize_t count = recvfrom(sockfd, buf, MAX_PACKET_LENGTH, MSG_DONTWAIT, (struct sockaddr *) &received_addr, &received_addrlen); //non-blocking
             if(count == -1 && errno == EAGAIN)
             {
@@ -508,7 +508,7 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
         clock_gettime(CLOCK_MONOTONIC, &tmp);
 
 		timespec_subtract(&result, &last_received_msg_time, &tmp);
-        memset(buf, 0, sizeof(buf));
+        memset(buf, 0, MAX_PACKET_LENGTH+1);
 		ssize_t count = recvfrom(sockfd, buf, MAX_PACKET_LENGTH, MSG_DONTWAIT, (struct sockaddr *) &received_addr, &received_addrlen); 
         if(count == -1 && errno == EAGAIN)
         {
@@ -595,7 +595,7 @@ int TCPManager::custom_send(int sockfd, FILE* fp, const struct sockaddr *remote_
 			clock_gettime(CLOCK_MONOTONIC, &tmp);
 			//wait for a response quietly.
 			timespec_subtract(&result, &last_received_msg_time, &tmp);
-            memset(buf, 0, sizeof(buf));
+            memset(buf, 0, MAX_PACKET_LENGTH+1);
 			ssize_t count = recvfrom(sockfd, buf, MAX_PACKET_LENGTH, MSG_DONTWAIT, (struct sockaddr *) &client_addr, &client_addrlen); //non-blocking
             if(count == -1 && errno == EAGAIN)
             {
@@ -673,7 +673,7 @@ int TCPManager::custom_send(int sockfd, FILE* fp, const struct sockaddr *remote_
     while(!fin_established)
     {
         //note that we have no timeout window; the server handles timeouts for us.
-        memset(buf, 0, sizeof(buf));
+        memset(buf, 0, MAX_PACKET_LENGTH+1);
         ssize_t count = recvfrom(sockfd, buf, MAX_PACKET_LENGTH, MSG_DONTWAIT, (struct sockaddr *) &client_addr, &client_addrlen); //non-blocking
 
         if(count == -1 && errno == EAGAIN)
@@ -841,7 +841,7 @@ int TCPManager::custom_send(int sockfd, FILE* fp, const struct sockaddr *remote_
         clock_gettime(CLOCK_MONOTONIC, &tmp);
 
         timespec_subtract(&result, &last_received_msg_time, &tmp);
-        memset(buf, 0, sizeof(buf));
+        memset(buf, 0, MAX_PACKET_LENGTH+1);
         ssize_t count = recvfrom(sockfd, buf, MAX_PACKET_LENGTH, MSG_DONTWAIT, (struct sockaddr *) &client_addr, &client_addrlen); 
         if(count == -1 && errno == EAGAIN)
         {
@@ -926,7 +926,7 @@ int TCPManager::custom_send_nobuffer(int sockfd, FILE* fp, const struct sockaddr
             clock_gettime(CLOCK_MONOTONIC, &tmp);
             //wait for a response quietly.
             timespec_subtract(&result, &last_received_msg_time, &tmp);
-            memset(buf, 0, sizeof(buf));
+            memset(buf, 0, MAX_PACKET_LENGTH+1);
             ssize_t count = recvfrom(sockfd, buf, MAX_PACKET_LENGTH, MSG_DONTWAIT, (struct sockaddr *) &client_addr, &client_addrlen); //non-blocking
             if(count == -1 && errno == EAGAIN)
             {
@@ -1004,7 +1004,7 @@ int TCPManager::custom_send_nobuffer(int sockfd, FILE* fp, const struct sockaddr
     while(!fin_established)
     {
         //note that we have no timeout window; the server handles timeouts for us.
-        memset(buf, 0, sizeof(buf));
+        memset(buf, 0, MAX_PACKET_LENGTH+1);
         ssize_t count = recvfrom(sockfd, buf, MAX_PACKET_LENGTH, MSG_DONTWAIT, (struct sockaddr *) &client_addr, &client_addrlen); //non-blocking
 
         if(count == -1 && errno == EAGAIN)
@@ -1161,7 +1161,7 @@ int TCPManager::custom_send_nobuffer(int sockfd, FILE* fp, const struct sockaddr
         clock_gettime(CLOCK_MONOTONIC, &tmp);
 
         timespec_subtract(&result, &last_received_msg_time, &tmp);
-        memset(buf, 0, sizeof(buf));
+        memset(buf, 0, MAX_PACKET_LENGTH+1);
         ssize_t count = recvfrom(sockfd, buf, MAX_PACKET_LENGTH, MSG_DONTWAIT, (struct sockaddr *) &client_addr, &client_addrlen); 
         if(count == -1 && errno == EAGAIN)
         {
