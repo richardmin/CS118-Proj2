@@ -252,6 +252,7 @@ int TCPManager::custom_recv(int sockfd, FILE* fp)
             if(readnum == 0)
                 break;
             b.size = readnum + 8;
+            std::cout << "readnum: " << readnum << std::endl;
 
             //note that acknum never increases because we never get data from the client.
             packet_headers p = {seqnum, acknum, INIT_RECV_WINDOW, 0};
@@ -890,7 +891,7 @@ uint16_t TCPManager::next_seq_num(int datalen)
     //sequence numbers are cumulative: once you've sent the data the sequence number will go up
 	uint16_t cache_seq_num = last_ack_num;
 	cache_seq_num += datalen;
-	if (cache_seq_num >= MAX_SEQUENCE_NUMBER)
+	if (cache_seq_num > MAX_SEQUENCE_NUMBER)
 			cache_seq_num -= MAX_SEQUENCE_NUMBER;
     if(last_cumulative_seq_num >= cache_seq_num)
         cache_seq_num += last_cumulative_seq_num; //acks are accumulative, so we should store the amount of data. 
@@ -915,7 +916,7 @@ uint16_t TCPManager::next_ack_num(int datalen)
 
 	//Next ack number will be the recieved_seqNum + datalen
 	uint16_t next_ack_num = last_seq_num + datalen;
-	if (next_ack_num >= MAX_SEQUENCE_NUMBER)
+	if (next_ack_num > MAX_SEQUENCE_NUMBER)
 		next_ack_num -= MAX_SEQUENCE_NUMBER;
 
 	return next_ack_num;
