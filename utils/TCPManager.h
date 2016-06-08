@@ -18,6 +18,7 @@ class TCPManager
 public:
 	int custom_recv(int sockfd, FILE* fp);
 	int custom_send(int sockfd, FILE* fp, const struct sockaddr* remote_addr, socklen_t remote_addrlen);
+	int custom_send_nobuffer(int sockfd, FILE* fp, const struct sockaddr* remote_addr, socklen_t remote_addrlen);
 
 	TCPManager();
 	~TCPManager();
